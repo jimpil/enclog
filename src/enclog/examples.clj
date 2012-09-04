@@ -1,7 +1,7 @@
-(ns clojure-encog.examples
-(:use [clojure-encog.nnets]
-      [clojure-encog.training]
-      [clojure-encog.normalization])
+(ns enclog.examples
+(:use [enclog.nnets]
+      [enclog.training]
+      [enclog.normalization])
 (:import ;(org.encog.ml.train.strategy RequiredImprovementStrategy)
          (org.encog.neural.networks.training TrainingSetScore)
          (org.encog.util EngineArray)

@@ -1,4 +1,4 @@
-(ns clojure-encog.training
+(ns enclog.training
 (:import
        (org.encog.neural.networks.training CalculateScore)
        (org.encog.neural.networks.training.simple TrainAdaline)

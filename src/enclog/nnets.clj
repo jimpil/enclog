@@ -1,5 +1,4 @@
-(ns clojure-encog.nnets
-
+(ns enclog.nnets
 (:import 
 (org.encog.neural.pattern 
        FeedForwardPattern ADALINEPattern ART1Pattern BAMPattern

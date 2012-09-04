@@ -1,4 +1,4 @@
-(ns clojure-encog.normalization
+(ns enclog.normalization
 (:import
        (org.encog StatusReportable NullStatusReportable)
        (org.encog.util.normalize DataNormalization)

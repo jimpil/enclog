@@ -1,4 +1,4 @@
-(ns clojure-encog.util
+(ns enclog.util
    (:use [clojure.pprint]))
 
 
