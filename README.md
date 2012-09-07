@@ -22,7 +22,7 @@ The jar(s)?
 As usual, it lives on clojars. Just add:
 ``` clojure
 [org.encog/encog-core "3.1.0"]   ;official encog 3.1 release 
-[enclog "0.5.0-SNAPSHOT"] ;my code
+[enclog "0.5.1-SNAPSHOT"] ;my code
 ```
 to your :dependencies and you 're good to go...
 
