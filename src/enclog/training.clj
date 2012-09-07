@@ -104,24 +104,31 @@
  :basic    :range   :consistent   :distort  
  :constant :fan-in  :gaussian     :nguyen-widrow 
  ------------------------------------------------
- Returns a Randomizer object or a closure." 
+ Returns a Randomizer object or a closure that needs extra args." 
 [type]
 (condp = type
-    :basic      (BasicRandomizer.) ;random number generator with a random(current time) seed
     :range      (fn [min-val max-val] (RangeRandomizer. min-val max-val)) ;range randomizer
     :consistent (fn [min-rand max-rand] (ConsistentRandomizer. min-rand max-rand)) ;consistent range randomizer
     :constant   (fn [constant] (ConstRandomizer. constant))
     :distort    (fn [factor]   (Distort. factor))
     :fan-in     (fn [boundary sqr-root?] (FanInRandomizer. (- boundary) boundary (if (nil? sqr-root?) false sqr-root?)))
     :gaussian   (fn [mean st-deviation] (GaussianRandomizer. mean st-deviation))
-    :nguyen-widrow  (NguyenWidrowRandomizer.) ;the most performant randomizer  
+    :nguyen-widrow  (NguyenWidrowRandomizer.) ;the most performant randomizer for networks  
 ))
 
 (defn randomize
-"Performs the actual randomization. Expects a randomizer object and some data. Options for data include:
- MLMethod -- double -- double[] -- double[][] -- Matrix " 
-[^Randomizer randomizer data] 
-(. randomizer randomize data))
+"Performs the actual randomization mainly via array mutation. Expects a randomizer object and some data. 
+ Pass in vector(s) if you want vector(s) back, otherwise you will get arrays. Data can be:
+ MLMethod (network) -- double -- double[] -- double[][] -- Matrix -- clj-vector (1d / 2d).
+ Note: Not all randomizers implement randomize() (only FanIn)." 
+[^Randomizer randomizer data]
+(if-not (vector? data) (do (.randomize randomizer data) data)
+(let [res2 (when (vector? (first data)) (into-array (map #(into-array Double/TYPE %) data)))
+      res1 (when-not res2 (double-array data))]
+  (cond res2 (do (.randomize randomizer res2) (vec (map vec res2))) ;got vectors return vectors
+        res1 (do (.randomize randomizer res1) (vec res1)) ;got vector return vector
+  :else "Nothing happened!!!")))) 
+                             
 
 (defmacro implement-CalculateScore 
 "Consumer convenience for implementing the CalculateScore interface which is needed for genetic and simulated annealing training."
