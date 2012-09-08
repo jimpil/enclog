@@ -33,9 +33,9 @@ Quick demo:
 Ok, most the networks are already functional so let's go ahead and make one. Let's assume that for some reason we need a feed-forward net with 32 input neurons, 1 output neuron (classification), and 2 hidden layers with 50 and 10 neurons respectively...We don't really care about the activation function at this point because we are not going to do anything useful with this particular network.
 
 ``` clojure
-(def network     ;;def-ing it here for demo purposes
-    (network  (activation :sigmoid) 
-              (neural-pattern :feed-forward)
+(def net     ;;def-ing it here for demo purposes
+    (network  (neural-pattern :feed-forward)
+              (activation :sigmoid) 
                :input   32
                :output  1
                :hidden [50 10])) ;;2 hidden layers
@@ -53,31 +53,26 @@ first we are going to need some dummy data...
 (let [xor-input [[0.0 0.0] [1.0 0.0] [0.0 0.1] [1.0 1.0]]
       xor-ideal [[0.0] [1.0] [1.0] [0.0]] 
       dataset   (data :basic-dataset xor-input xor-ideal)
-      trainer   ((trainer :back-prop) network dataset)])
-
-;;notice how 'make-trainer' returns a function which itself expects some argumets.
+      trainer   (trainer :back-prop :network net :training-set dataset)]
+ (train trainer 0.01 500 []))
+  
+;;train expects a training-method , error tolerance, iteration limit & strategies (possibly none)
 ;;in this case we're using simple back-propagation as our training scheme of preference.
-;;feed-forward nets can be used with a variety of activations/trainers.
-```
-as soon as you have that, training is simply a matter of:
-``` clojure
-(train trainer 0.01 500 [])
-;train expects a training-method , error tolerance, iteration limit, & strategies (possibly none)
+;;feed-forward networks can be used with a variety of activations/trainers.
 ```
 
 and that's it really!
 after training finishes you can start using the network as normal. For more in depth instructions consider looking at the 2 examples found in the examples.clj ns. These include the classic xor example (trained with resilient-propagation) and the lunar lander example (trained with genetic algorithm) from the from encog wiki/books.
 
 In general you should always remember:
-- Most (if not all) of the constructor-functions (e.g. make-something) accept keywords for arguments. The documentation tells you
-exactly what your options are. Some constructor-functions return other functions (closures) which then need to be called again with potentially extra arguments, in order to get the full object. 
+- Most (if not all) of the constructor-functions (e.g. network, data, trainer etc.) accept keywords for arguments. The documentation tells you exactly what your options are. Some constructor-functions return other functions (closures) which then need to be called again with potentially extra arguments, in order to get the full object. 
 
-- 'network' is a big multi-method that is responsible for looking at what type of neural pattern has been passed in and dispatching the appropriate method. This is the 'spine' of creating networks in clojure-encog.
+- 'network' is a big multi-method that is responsible for looking at what type of neural pattern has been passed in and dispatching the appropriate method. This is the 'spine' of creating networks with enclog.
 
 - NeuroEvolution of Augmenting Topologies (NEAT) don't need to be initialised as seperate networks like all other networks do. Instead, we usually initialise a NEATPopulation which we then pass to NEATTraining via 
 ``` clojure
-((trainer :neat) some-function-name true/false population)  ;OR
-((trainer :neat) some-function-name true/false 2 1 1000)    ;if we want a brand new population with default parameters
+(trainer :neat :fitness-fn #(...) :population-object (NEATPopulation. 2 1 1000)) ;;settable population object
+(trainer :neat :fitness-fn #(...) :input 2 :output 1 :population-size 1000)  ;;a brand new population with default parameters
 ```     
 
 - Simple convenience macros do exist for evaluating quickly a trained network and also for implementing the CalculateScore class which is needed for doing GA or simulated-annealing training.
@@ -91,7 +86,7 @@ Should work with 1.3 but not lower than that!
 It seems that the stdout problem persists in leiningen2 as well... (repl hangs unless aot and "lein2 run")
 
 
-This is still work in progress...If you're going to do any serious ML job with it, be prepared to write some Java simply because not everything has been wrapped. The plan is not to have to write any Java code by version 1.0. 
+This is still work in progress...If you're going to do any serious ML job with it, be prepared to write at least some Java simply because not everything has been wrapped. The plan is not to have to write any Java code by version 1.0. 
 
 ## License
 
