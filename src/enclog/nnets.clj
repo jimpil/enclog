@@ -25,7 +25,7 @@
  -------------------------------------------------------------
  Returns an object that implements NeuralNetworkPattern."
   [model]
-  (condp = model
+  (case model
        :feed-forward (FeedForwardPattern.)
        :adaline      (ADALINEPattern.)
        :art1         (ART1Pattern.)
@@ -39,7 +39,8 @@
        :pnn          (PNNPattern.)
        :svm          (SVMPattern.)
        :rbf          (RadialBasisPattern.)
- :else (throw (IllegalArgumentException. "Unsupported neural-pattern!"))) )
+ ;:else (throw (IllegalArgumentException. "Unsupported neural-pattern!"))
+ ))
 
 ;;usage: 
 ;;(make-pattern :feed-forward)
@@ -56,7 +57,7 @@
   ---------------------------------------------------
   Returns an ActivationFunction object." ;TODO
  [fun]
- (condp = fun 
+ (case fun 
       :tanh     (ActivationTANH.)
       :sigmoid  (ActivationSigmoid.)
       :gaussian (ActivationGaussian.)
@@ -73,7 +74,8 @@
       :elliot           (ActivationElliott.)
       :elliot-symmetric (ActivationElliottSymmetric.)
       :steepened-sigmoid (ActivationSteepenedSigmoid.)
- :else (throw (IllegalArgumentException. "Unsupported activation-function!"))))
+ ;:else (throw (IllegalArgumentException. "Unsupported activation-function!"))
+ ))
 
 ;;usage: (make-activationF :tanh)
 ;;       (make-activationF :linear)
@@ -83,65 +85,65 @@
 "Constructs a neural-network given some layers, an activation and a neural pattern. layers has to be map with 3 keys {:input x :output y :hidden [k j & more]} where :hidden holds a vector whose size is the number of desirable hidden layers. The layers are added sequentially to the input layer so first hidden layer will have k neurons, the second j neurons and so forth. Some networks do not accept hidden layers and thus the parameter is ignored. See example usage below.
  Returns the complete neural-network object with randomized weights or in case of SVMs and PNNs a function, that needs to be called again (potentially with nil arguments) in order to produce the actual SVM/PNN object.
  example: 
-  (network {:input 32 
-                 :output 1 
-                 :hidden [40, 10, 5]}   ;;3 hidden layers (first has 40 neurons, second 10, third 5)
-  (make-activationF :tanh)              ;;hyperbolic tangent for activation function
-  (make-pattern     :feed-forward))     ;;the classic feed-forward pattern"
+  (network (activation :tanh)               ;;hyperbolic tangent for activation function
+           (neural-pattern :feed-forward))  ;;the classic feed-forward pattern
+            :input 32 
+            :output 1 
+            :hidden [40, 10, 5]   ;;3 hidden layers (first has 40 neurons, second 10, third 5) ."
 (fn [activation pattern & {:as layers}] (class pattern)));;dispatch function only cares about the class of the pattern
 
 (defmethod network FeedForwardPattern
 [activation pattern & {:as layers}] 
     (do 
-       (.setInputNeurons pattern  (layers :input))
-       (.setOutputNeurons pattern (layers :output))
+       (.setInputNeurons pattern  (:input layers))
+       (.setOutputNeurons pattern (:output layers))
        (.setActivationFunction pattern activation);many activations are allowed here
- (dotimes [i (count (layers :hidden))] 
-         (.addHiddenLayer pattern ((layers :hidden) i)))
+ (dotimes [i (count (:hidden layers))] 
+         (.addHiddenLayer pattern ((:hidden layers) i)))
          (.generate pattern)))  ;;finally, return the complete network object
  
 (defmethod network ADALINEPattern ;no hidden layers - only ActivationLinear
 [_ pattern & {:as layers}] ;;ignoring activation 
     (doto pattern  
-         (.setInputNeurons  (layers :input))   
-         (.setOutputNeurons (layers :output)))
+         (.setInputNeurons  (:input layers))   
+         (.setOutputNeurons (:output layers)))
     (.generate pattern)) 
 
 
 (defmethod network ART1Pattern ;;no hidden layers - only ActivationLinear
 [_ pattern & {:as layers}] ;;ignoring activation 
     (doto pattern  
-         (.setInputNeurons  (layers :input))
-         (.setOutputNeurons (layers :output)))
+         (.setInputNeurons  (:input layers))
+         (.setOutputNeurons (:output layers)))
     (.generate pattern))
 
 (defmethod network BAMPattern ;no hidden layers - only ActivationBiPolar
 [_ pattern & {:as layers}] ;;ignoring layers and activation 
     (doto pattern  
-         (.setF1Neurons (layers :input))
-         (.setF2Neurons (layers :output)))
+         (.setF1Neurons (:input layers))
+         (.setF2Neurons (:output layers)))
     (.generate pattern))
  
 (defmethod network BoltzmannPattern ;;no hidden layers - only ActivationBipolar
 [layers _ pattern] ;;ignoring activation 
     (do  
-    (.setInputNeurons pattern  (layers :input))
+    (.setInputNeurons pattern  (:input layers))
     (.generate pattern)))
  
 (defmethod network CPNPattern ;;one hidden layer - only ActivationBipolar + Competitive
 [_ pattern & {:as layers}] ;;ignoring activation 
     (doto pattern  
-         (.setInputNeurons  (layers :input))
-         (.setInstarCount   ((layers :hidden) 0))
-         (.setOutputNeurons (layers :output)))
+         (.setInputNeurons  (:input layers))
+         (.setInstarCount   ((:hidden layers) 0))
+         (.setOutputNeurons (:output layers)))
     (.generate pattern))
  
 (defmethod network ElmanPattern;;one hidden layer only - settable activation
 [activation pattern & {:as layers}] 
     (doto pattern  
-         (.setInputNeurons  (layers :input))
-         (.setOutputNeurons (layers :output))
-         (.addHiddenLayer ((layers :hidden) 0))
+         (.setInputNeurons  (:input layers))
+         (.setOutputNeurons (:output layers))
+         (.addHiddenLayer ((:hidden layers) 0))
          (.setActivationFunction activation)) 
     (.generate pattern))
 
@@ -149,9 +151,9 @@
 (defmethod network HopfieldPattern ;;one hidden layer only - settable activation
 [activation pattern & {:as layers}] 
     (doto pattern 
-         (.setInputNeurons  (layers :input))
-         (.setOutputNeurons (layers :output))
-         (.addHiddenLayer   ((layers :hidden) 0))
+         (.setInputNeurons  (:input layers))
+         (.setOutputNeurons (:output layers))
+         (.addHiddenLayer   ((:hidden layers) 0))
          (.setActivationFunction activation))
     (.generate pattern))   
  
@@ -159,9 +161,9 @@
 (defmethod network JordanPattern ;;one hidden layer only - settable activation
 [activation pattern & {:as layers}] 
     (doto pattern 
-         (.setInputNeurons (layers :input))
-         (.setOutputNeurons (layers :output))
-         (.addHiddenLayer  ((layers :hidden) 0))
+         (.setInputNeurons (:input layers))
+         (.setOutputNeurons (:output layers))
+         (.addHiddenLayer  ((:hidden layers) 0))
          (.setActivationFunction pattern activation))
    (.generate pattern))
 
@@ -169,24 +171,24 @@
 (defmethod network SOMPattern ;non settable activation - no hidden layers
 [_ pattern & {:as layers}] ;;ignoring activation
     (doto pattern  
-         (.setInputNeurons  (layers :input))
-         (.setOutputNeurons (layers :output)))
+         (.setInputNeurons  (:input layers))
+         (.setOutputNeurons (:output layers)))
     (.generate pattern))
  
 (defmethod network RadialBasisPattern ;usually has one hidden layer - non settable activation
 [_ pattern & {:as layers}] ;;ignoring activation
     (doto pattern  
-         (.setInputNeurons  (layers :input))
-         (.setOutputNeurons (layers :output))
-         (.addHiddenLayer ((layers :hidden) 0)))
+         (.setInputNeurons  (:input layers))
+         (.setOutputNeurons (:output layers))
+         (.addHiddenLayer ((:hidden layers) 0)))
     (.generate pattern))
     
     
 ;(defmethod network RSOMPattern ;;no hidden layers - non settable activation
 ;[layers _ p] ;;ignoring activation
 ; (let [pattern p]
-;    (do  (.setInputNeurons pattern  (layers :input))
-;         (.setOutputNeurons pattern (layers :output)) 
+;    (do  (.setInputNeurons pattern  (:input layers))
+;         (.setOutputNeurons pattern (:output layers)) 
 ;    (. pattern generate))))  
 ;----------------------------------------------------------------------------------
 ;----------------------------------------------------------------------------------
@@ -197,7 +199,7 @@
 [_ pattern & {:as layers}] ;;ignoring activation
  (fn [svm-type kernel-type] ;;returns a function which will return the actual network
     (doto pattern 
-         (.setInputNeurons (layers :input))
+         (.setInputNeurons (:input layers))
          (.setOutputNeurons 1) ;only one output is allowed
          (when-not (nil? kernel-type) 
                          (.setKernelType kernel-type))
@@ -209,8 +211,8 @@
 [_ pattern & {:as layers}] ;;ignoring activation
 (fn [kernel out-model]
     (doto pattern 
-         (.setInputNeurons  (layers :input))
-         (.setOutputNeurons (layers :output))
+         (.setInputNeurons  (:input layers))
+         (.setOutputNeurons (:output layers))
          (when-not (nil? kernel)    
                          (.setKernel kernel))
          (when-not (nil? out-model) 
@@ -220,4 +222,4 @@
 
 (defmethod network :default 
 [_ _ _] ;;ignoring everything
-(throw (IllegalArgumentException. "Unsupported Pattern!")))
+(throw (IllegalArgumentException. "Unsupported pattern!")))
