@@ -29,18 +29,25 @@ to your :dependencies and you 're good to go...
 
 Quick demo:
 -------------
-
-Ok, most the networks are already functional so let's go ahead and make one. Let's assume that for some reason we need a feed-forward net with 32 input neurons, 1 output neuron (classification), and 2 hidden layers with 50 and 10 neurons respectively...We don't really care about the activation function at this point because we are not going to do anything useful with this particular network.
+-quick & dirty: (need lein2)
 
 ``` clojure
-(def net     ;;def-ing it here for demo purposes
-    (network  (neural-pattern :feed-forward)
+(use '[cemerick.pomegranate :only (add-dependencies)])
+(add-dependencies :coordinates '[[enclog "0.5.2-SNAPSHOT"]] 
+                  :repositories (merge cemerick.pomegranate.aether/maven-central {"clojars" "http://clojars.org/repo"}))
+(use '[enclog nnets training])
+```
+
+Ok, most the networks are already functional so let's go ahead and make one. Let's assume that for some reason we need a feed-forward net with 2 input neurons, 1 output neuron (classification), and 1 hidden layer with 2 neurons for the XOR problem.
+
+``` clojure
+(def net  
+    (network  (neural-pattern :feed-forward) 
               (activation :sigmoid) 
-               :input   32
+               :input   2
                :output  1
-               :hidden [50 10])) ;;2 hidden layers
-                  
-;;this is actually the neural pattern i used for my final year project at uni!                  
+               :hidden [2])) ;;a single hidden layer 
+                                    
 ```
 ...and voila! we get back the complete network initialised with random weights.
 
