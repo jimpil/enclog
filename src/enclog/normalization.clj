@@ -25,13 +25,21 @@
 ))
 ;--------------------------------------------   
 (defn target-storage
-"Constructs a Normalization storage facility. Options include:" 
-[type & sizes]
+"Constructs a Normalization storage object. Options [with args] include:
+--------------------------------------------------------------------------
+:norm-array   :norm-array-2d    :norm-csv[filename]      :norm-dataset
+---------------------------------------------------------------------------
+-examples:
+ (target-storage :norm-array 50)      ;;50 rows
+ (target-storage :norm-array2d 50 20) ;;50 rows 20 columns
+ (target-storage :norm-dataset 50 30) ;;input-count & ideal-count
+ (target-storage :norm-csv :target-file (str 'some-file.csv))  " 
+[type [size1 size2] &{:keys [target-file]}]
 (case type
-       :norm-array     (NormalizationStorageArray1D. (make-array Double/TYPE (first sizes))) ;just rows
-       :norm-array2d   (NormalizationStorageArray2D. (make-array Double/TYPE (first sizes) (second sizes))) ;columns,rows
-       :norm-csv   (fn [^String filename] (NormalizationStorageCSV. (java.io.File. filename))) ;where to write the csv file
-       :norm-dataset   (NormalizationStorageNeuralDataSet. (first sizes) (second sizes)) ;input-count & ideal-count
+       :norm-array     (NormalizationStorageArray1D. (make-array Double/TYPE size1)) ;just rows
+       :norm-array2d   (NormalizationStorageArray2D. (make-array Double/TYPE size1 size2)) ;columns, rows
+       :norm-csv       (NormalizationStorageCSV. (java.io.File. target-file))  ;where to write the csv file
+       :norm-dataset   (NormalizationStorageNeuralDataSet. size1 size2)    ;input-count & ideal-count
 ;:else (throw (IllegalArgumentException. "Unsupported storage-target type!"))
 ))    
  
