@@ -19,10 +19,10 @@
       xor-ideal [[0.0] [1.0] [1.0] [0.0]] 
       dataset   (data :basic-dataset xor-input xor-ideal)
       net   (network  (neural-pattern :feed-forward) 
-                          (activation :sigmoid) 
-                               :input   2
-                               :output  1
-                               :hidden [2]) ;a single hidden layer
+                          :activation :sigmoid 
+                          :input   2
+                          :output  1
+                          :hidden [2]) ;a single hidden layer
       trainer   (trainer :resilient-prop :network net :training-set dataset)]
      ;;make use of the boolean parameter
       (if train-to-error? 
@@ -56,7 +56,7 @@
       activation (activation :step)
       population (NEATPopulation. 2 1 1000)
       trainer    (NEATTraining. (TrainingSetScore. dataset) population)]
-                ;((trainer :neat) some-function-name true/false population)
+               ;(trainer :neat :fitness-fn #(...) population)
                 ;this is the alternative when you have an actual Clojure function that you wan to use
                 ;as the fitness-function. Here the implementation is already provided in a Java class,
                 ;that is why I'm not using my own function instead.
@@ -90,7 +90,7 @@ wraps a call to your real fitness-function (like here) seems a good choice."
 "The Lunar-Lander example which can be trained with a GA/simulated annealing. Returns the best evolved network."
 [popu]
 (let [net (network  (neural-pattern :feed-forward) 
-                    (activation :tanh) 
+                        :activation :tanh 
                         :input   3
                         :output  1
                         :hidden [50]) ;a single hidden layer of 50 neurons
@@ -106,7 +106,7 @@ wraps a call to your real fitness-function (like here) seems a good choice."
             _     nil
             best  nil]
      (if (> epoch 200)  (do (.shutdown (org.encog.Encog/getInstance)) best) ;;return the best evolved network 
-     (recur (inc epoch) (. trainer iteration) (. trainer getMethod)))) ))
+     (recur (inc epoch) (.iteration trainer) (.getMethod trainer)))) ))
 ;---------------------------------------------------------------------------------------------------------------
 ;----------------------------PREDICT-SUNSPOT-SVM------------------------------------------------------------
 
@@ -171,14 +171,13 @@ wraps a call to your real fitness-function (like here) seems a good choice."
       closedLoopSunspots (EngineArray/arrayCopy normalizedSunspots)
       train-set         ((data :temporal-window normalizedSunspots) window-size 1) 
       net  (network (neural-pattern :svm) 
-                    (activation :tanh) ;will be ignored
                      :input  window-size)   ;;default values will be given for svm/kernel type
       trainer       (trainer :svm :network net 
                                   :training-set train-set) 
       nf               (NumberFormat/getNumberInstance)]
-(do (. trainer iteration) ;;SVM TRAINED AND READY FOR PREDICTIONS AFTER THIS LINE
-    (. nf setMaximumFractionDigits 4)
-    (. nf setMinimumFractionDigits 4)
+(do (.iteration trainer ) ;;SVM TRAINED AND READY FOR PREDICTIONS AFTER THIS LINE
+    (.setMaximumFractionDigits nf 4)
+    (.setMinimumFractionDigits nf 4)
     (println "Year" \tab "Actual" \tab "Predict" \tab "Closed Loop Predict")     
 (loop [evaluation-start (inc train-end)]          
 (if (== evaluation-start evaluation-end) 'DONE...
@@ -206,7 +205,7 @@ wraps a call to your real fitness-function (like here) seems a good choice."
 (let [input [[-1.0, -1.0, 1.0, 1.0 ] 
              [1.0, 1.0, -1.0, -1.0]]
       dataset (data :basic-dataset input nil);there is no ideal data (unsupervised)
-      net (network (neural-pattern :som) nil :input 4 :output 2)
+      net (network (neural-pattern :som) :input 4 :output 2)
       trainer (trainer :basic-som :network net 
                                   :training-set dataset  
                                   :learning-rate 0.7
@@ -230,15 +229,14 @@ wraps a call to your real fitness-function (like here) seems a good choice."
 
 (defn norm-ex-1d [] ;;example with 1d array
 (let [source dummy1
-      length (count source) 
-      raw-input     (input source :forNetwork? false :type :array-1d)         
-      input-field   (raw-input);no parameters are necessary here
-      output-field  ((output input-field  :type :range-mapped) 0.1 0.9) ;low & high  
-      target        (target-storage :norm-array length)
+      size (count source)            
+      input-field   (input source :forNetwork? false :type :array-1d)  
+      output-field  (output input-field  :type :range-mapped :bottom 0.1 :top 0.9)
+      target        (target-storage :norm-array size)
       ready         ((prepare :range [input-field] ;needs to be seqable
                                      [output-field] ;same here 
-                                     :ceiling 0.9 
-                                     :floor   0.1) false target)]                        
+                                     :top    0.9 
+                                     :bottom 0.1) false target)]                        
 (println   (seq ready) "\n---------- THESE 2 SHOULD BE IDENTICAL! ----------------\n" )
 
 ;the version below skips initialising input/output fields and storage targets...
@@ -246,8 +244,8 @@ wraps a call to your real fitness-function (like here) seems a good choice."
 (seq (prepare :array-range nil nil ;inputs & outputs are nil
                 :raw-seq source 
                 :forNetwork? false
-                :ceiling 0.9
-                :floor 0.1))
+                :top 0.9
+                :bottom 0.1))
 ))
 
 
@@ -255,19 +253,15 @@ wraps a call to your real fitness-function (like here) seems a good choice."
 (defn norm-ex-2d [] ;;example with 2d array
 (let [source dummy2
       column-length (count (first source)) ;5
-      row-length  (count source) ;3
-      ;ceiling 0.9 
-      ;floor 0.1 
-      raw-input        (input source :forNetwork? false :type :array-2d)
-      input-fields-2d  (for [i (range column-length)] (raw-input i)) ;i=index2         
-      ;input-field   (raw-input);
-      output-fields-2d   (for [i input-fields-2d] ((output i :type :range-mapped) 0.1 0.9)) ;low-high
-      ;output-fields-2d  (raw-output 0.1 0.9)  
+      row-length  (count source) ;3 
+      input-fields-2d  (for [i (range column-length)]
+                         (input source :forNetwork? false :type :array-2d :index2 i))        
+      output-fields-2d   (for [inpf input-fields-2d] (output inpf :type :range-mapped :bottom 0.1 :top 0.9))
       target           (target-storage :norm-array2d row-length column-length)
-      ready          ((prepare :range input-fields-2d ;already seqables
-                                      output-fields-2d  
-                                      :ceiling 0.9 
-                                      :floor   0.1) false target)]                 
+      ready           ((prepare :range input-fields-2d ;already seqables
+                                       output-fields-2d  
+                                      :top 0.9 
+                                      :bottom  0.1) false target)]                 
 
                   
 (println  (map seq (seq ready)) "\n--------------------------------\n" )
@@ -296,8 +290,8 @@ wraps a call to your real fitness-function (like here) seems a good choice."
       storage ((target-storage :norm-csv) target)
       ready ((prepare :range input-fields 
                              output-fields
-                             :ceiling max
-                             :floor   min) false storage)] 
+                             :top max
+                             :bottom min) false storage)] 
     ))
 
 
@@ -408,8 +402,9 @@ Proximable
 (defn -main [] 
 ;(xor true)
 (xor false)
-(xor-neat false)
+;(xor-neat false)
 (kmeans 2)
 (predict-sunspot sunspots)
-(try-it (lunar-lander 1000))
+(norm-ex-1d) 
+;(try-it (lunar-lander 1000))
 )
