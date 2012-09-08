@@ -11,7 +11,7 @@ Clojure wrapper for the encog (v3) machine-learning framework .
 ---------
 Encog has been around for almost 5 years, and so can be considered fairly mature and optimised. Apart from neural-nets, version 3 introduced SVM and Bayesian classification. With this library, which is a thin wrapper around encog, you can construct and train many types of neural nets in less than 10 lines of pure Clojure code. The whole idea, from the start, was to expose the user as little as possible to the Java side of things, thus eliminating any potential sharp edges of a rather big librabry like encog. Hopefully I've done a good job...feel free to try it out, and more importantly, feel free to drop any comments/opinions/advice/critique etc etc...
 
-P.S.: This is still work in progress. Nonetheless the neural nets and training methods are pretty much complete - what's left at this point is data-models, randomization and the bayesian stuff...aaaa also I'm pretty sure we need tests :) ...  
+P.S.: This is still work in progress. Nonetheless the neural nets, training methods,randomization and normalisation are pretty much complete - what's left at this point is the bayesian stuff if I'm not mistaken'...aaaa also I'm pretty sure we need tests :) ...  
 
 
 ## Usage
@@ -22,7 +22,7 @@ The jar(s)?
 As usual, it lives on clojars. Just add:
 ``` clojure
 [org.encog/encog-core "3.1.0"]   ;official encog 3.1 release 
-[enclog "0.5.1-SNAPSHOT"] ;my code
+[enclog "0.5.2-SNAPSHOT"] ;my code
 ```
 to your :dependencies and you 're good to go...
 
