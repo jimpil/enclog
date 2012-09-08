@@ -41,10 +41,11 @@
 ;--------------------------------------*SOURCE*--------------------------------------------------------------------------------
 ;------------------------------------------------------------------------------------------------------------------------------
 (defn data 
-"Constructs a MLData object given some data which can be nested as well. Options include:
+"Constructs a MLData object given some data which can be nested. Options include:
  ---------------------------------------------------------------------------------------
- :basic   :basic-dataset  :temporal-window  :basic-complex (not wrapped) 
- :folded (not wrapped) 
+ :basic   :basic-dataset  :temporal-window [window-size prediction-size]  
+ :basic-complex (not wrapped)  :folded (not wrapped) 
+ ---------------------------------------------------------------------------------------
  Returns the actual MLData object or a closure that needs to be called again with extra arguments." 
 [of-type & data]
 (case of-type
@@ -66,7 +67,7 @@
 ;:else (throw (IllegalArgumentException. "Unsupported data model!"))
 ))
 
-(defn make-neighborhoodF 
+(defn neighborhood-F 
 "To be used with SOMs. Options for type include:
  -----------------------------------------------
  :single  :bubble  :rbf  :rbf1D
@@ -80,12 +81,12 @@
 ))
 
 ;;example-usage: 
-; (make-neighborhoodF :single)
-; (make-neighborhoodF :bubble 5)
-; ((make-neighborhoodF :rbf1D) (make-RBFEnum :gaussian))
-; ((make-neighborhoodF :rbf)   (make-RBFEnum :mexican-hat) 2 3 5) 
+; (neighborhood-F  :single)
+; (neighborhood-F  :bubble 5)
+; ((neighborhood-F  :rbf1D) (rbf-enum :gaussian))
+; ((neighborhood-F  :rbf)   (rbf-enum :mexican-hat) 2 3 5) 
 
-(defn make-RBFEnum
+(defn rbf-enum
  "Returns the appropriate RBFEnum given the provided preference. 
  This function is typically used in conjuction with 'make-neighborhoodF' in case 
  we choose rbf/rbf1D neighborhood functions. Generally this will be a :gaussian function.
@@ -95,24 +96,36 @@
         :gaussian     (RBFEnum/Gaussian)
         :multiquadric (RBFEnum/Multiquadric)
         :inverse-multiquadric  (RBFEnum/InverseMultiquadric)
-        :mexican-hat  (RBFEnum/MexicanHat)
- ))
+        :mexican-hat  (RBFEnum/MexicanHat)))
 
 (defn randomizer 
-"Constructs a Randomizer object. Options include:
+"Constructs a Randomizer object. Options [with respective args] include:
  ------------------------------------------------
- :range    :consistent   :distort   :gaussian  
- :constant :fan-in       :nguyen-widrow 
+ :range [:min, :max]   
+ :consistent [:min, :max]   
+ :distort [:factor]
+ :constant [:constant] 
+ :gaussian [:mean, :st-deviation]  
+ :fan-in (if :symmetric? [:boundary,  :sq-root?] 
+                         [:min, :max, :sq-root?]) 
+ :nguyen-widrow [] 
  ------------------------------------------------
- Returns a Randomizer object or a closure that needs extra args." 
-[type]
+ -examples:
+  (randomizer :range :min -1 :max 1)
+  (randomizer :distort :factor 0.5)
+  (randomizer :constant :constant 0.25)
+  (randomizer :fan-in :boundary 0.9 :symmetric? true)
+  (randomizer :fan-in :min 0.49 :max 0.9 :sqr-root? true) 
+  (randomizer :nguyen-widrow)" 
+[type & {:as opts}]
 (case type
-    :range      (fn [min-val max-val] (RangeRandomizer. min-val max-val)) ;range randomizer
-    :consistent (fn [min-rand max-rand] (ConsistentRandomizer. min-rand max-rand)) ;consistent range randomizer
-    :constant   (fn [constant] (ConstRandomizer. constant))
-    :distort    (fn [factor]   (Distort. factor))
-    :fan-in     (fn [boundary sqr-root?] (FanInRandomizer. (- boundary) boundary (if (nil? sqr-root?) false sqr-root?)))
-    :gaussian   (fn [mean st-deviation] (GaussianRandomizer. mean st-deviation))
+    :range      (RangeRandomizer. (:min opts) (:max opts)) ;range randomizer
+    :consistent (ConsistentRandomizer. (:min opts) (:max opts)) ;consistent range randomizer
+    :constant   (ConstRandomizer. (:constant opts))
+    :distort    (Distort. (:factor opts))
+    :fan-in     (if (:symmetric? opts) (FanInRandomizer. (- (:boundary opts)) (:boundary opts) (boolean (:sqr-root? opts)))
+                                       (FanInRandomizer. (:min opts) (:max opts) (boolean (:sqr-root? opts))))
+    :gaussian   (GaussianRandomizer. (:mean opts) (:st-deviation opts))
     :nguyen-widrow  (NguyenWidrowRandomizer.) ;the most performant randomizer for networks  
 ))
 
@@ -125,8 +138,8 @@
 (if-not (vector? data) (do (.randomize randomizer data) data) ;;not a vector (presumably an array)
 (let [res2 (when (vector? (first data)) (into-array (map #(into-array Double/TYPE %) data))) ;;2d vector
       res1 (when-not res2 (double-array data))] ;;1d vector
-  (cond res2 (do (.randomize randomizer res2) (vec (map vec res2))) ;got vectors return vectors
-        res1 (do (.randomize randomizer res1) (vec res1)) ;got vector return vector
+  (cond res2 (do (.randomize randomizer res2) (vec (map vec res2))) ;got 2d vector return 2d-vectos
+        res1 (do (.randomize randomizer res1) (vec res1)) ;got 1d-vector return 1d-vector
   :else "Nothing happened!!!")))) 
                              
 
@@ -138,46 +151,56 @@
   (^boolean shouldMinimize [this] ~minimize?)))
   
 (defmacro add-strategies [^MLTrain method & strategies]
-"Consumer convenience for adding strategies to a training method."
-`(doseq [s# ~@strategies]
- (.addStrategy ~method s#)))  
+"Consumer convenience for adding strategies to a training method. Returns the modified training method."
+`(do
+  (doseq [s# ~@strategies]
+  (.addStrategy ~method s#)) ~method))  
 
 (defn trainer
-"Constructs a training-method object given a method. Options inlude:
+"Constructs a training-method (MLTrain) object  given a method. Options [with respective args] inlude:
  -------------------------------------------------------------
- :simple     :back-prop    :quick-prop      :manhattan   :neat        
- :genetic    :svm          :nelder-mead     :annealing   :svd  
- :scaled-conjugent         :resilient-prop  :pnn                        
- ------------------------------------------------------------- 
- Returns a MLTrain object."
-[method]
+ :simple-adaline [:network, :training-set, :learning-rate]      
+ :quick-prop [:network, :training-set, :learning-rate]     
+ :manhattan  [:network, :training-set, :learning-rate]
+ :back-prop      [:network, training-set]
+ :resilient-prop [:network, training-set]   
+ :neat   [:score-fn,  :minimize?, :input, :output, :population-size/:population-object]     
+ :genetic [:network, :randomizer, :fitness-fn, :minimize?, population-size :mutation-percent, :mate-percent]   
+ :svm  [:network, :training-set]
+ :pnn  [:network, :training-set]
+ :basic-som   [:network, :training-set, :learning-rate, :neighborhood-fn]      
+ :nelder-mead [:network, :training-set, :step]    
+ :annealing   [:network, :fitness-fn, :minimize?, :start-temperature, :stop-temperature, :cycles]  
+ :svd  [:network, :training-set] 
+ :scaled-conjugent [:network, :training-set]                          
+ -------------------------------------------------------------"  
+[method & {:as opts}]
 (case method
-       :simple     (fn [net tr-set learn-rate] (TrainAdaline.  net tr-set (if (nil? learn-rate) 2.0 learn-rate)))
-       :back-prop  (fn [net tr-set] (Backpropagation. net tr-set))
-       :manhattan  (fn [net tr-set learn-rate] (ManhattanPropagation. net tr-set learn-rate))
-       :quick-prop (fn [net tr-set learn-rate] (QuickPropagation. net tr-set (if (nil? learn-rate) 2.0 learn-rate)))
-       :genetic    (fn [net randomizer fit-fun minimize? pop-size mutation-percent mate-percent] 
-                       (NeuralGeneticAlgorithm. net randomizer 
-                                                   (implement-CalculateScore minimize? fit-fun) 
-                                                    pop-size mutation-percent mate-percent))
-       :scaled-conjugent   (fn [net tr-set] (ScaledConjugateGradient. net tr-set))
-       :pnn                (fn [net tr-set] (TrainBasicPNN. net tr-set))
-       :annealing     (fn [net fit-fun minimize? startTemp stopTemp cycles] 
-                          (NeuralSimulatedAnnealing. net 
-                          (implement-CalculateScore minimize? fit-fun) startTemp stopTemp cycles))
-       :resilient-prop (fn [net tr-set]      (ResilientPropagation. net tr-set))
-       :nelder-mead    (fn [net tr-set step] (NelderMeadTraining. net tr-set (if (nil? step) 100 step)))
-       :svm            (fn [^SVM net tr-set] (SVMTrain. net tr-set))
-       :svd            (fn [^RBFNetwork net ^MLDataSet tr-set] (SVDTraining. net tr-set))
-       :basic-som      (fn [^SOM net learn-rate ^MLDataSet tr-set ^NeighborhoodFunction neighborhood] 
-                            (BasicTrainSOM. net learn-rate tr-set neighborhood))
-       :neat       (fn ([score-fun minimize? input output ^Integer population-size]
+       :simple-adaline (TrainAdaline. (:network opts) (:training-set opts) (:learning-rate opts))
+       :back-prop  (Backpropagation.  (:network opts) (:training-set opts)) 
+       :manhattan  (ManhattanPropagation. (:network opts) (:training-set opts) (:learning-rate opts))
+       :quick-prop (QuickPropagation. (:network opts) (:training-set opts) (if-let [lr (:learning-rate opts)] lr 2.0))
+       :genetic    (NeuralGeneticAlgorithm. (:network opts) (:randomizer opts) 
+                                            (implement-CalculateScore (:minimize? opts) (:fitness-fn opts)) 
+                                            (:population-size opts) (:mutation-percent opts) (:mate-percent opts))
+       :scaled-conjugent   (ScaledConjugateGradient. (:network opts) (:training-set opts))
+       :pnn                (TrainBasicPNN.  (:network opts) (:training-set opts))
+       :annealing         (NeuralSimulatedAnnealing. (:network opts) 
+                          (implement-CalculateScore (:minimize? opts) (:fitness-fn opts)) 
+                              (:start-temperature opts) (:stop-temperature opts)  (:cycles opts))
+       :resilient-prop (ResilientPropagation. (:network opts) (:training-set opts))
+       :nelder-mead    (NelderMeadTraining. (:network opts)  (if-let [st (:step opts)] st 100))
+       :svm            (SVMTrain. (:network opts) (:training-set opts))
+       :svd            (SVDTraining. (:network opts) (:training-set opts))
+       :basic-som      (BasicTrainSOM. (:network opts) (:training-set opts) (:learning-rate opts) (:neighborhood-fn opts))
+       :neat       (if-not (:population-object opts)
        ;;neat creates a population so we don't really need an actual network. We can skip the 'make-network' bit.
        ;;population can be an integer or a NEATPopulation object 
-                          (NEATTraining. (implement-CalculateScore minimize? score-fun) input output population-size))
-                       ([score-fun minimize? ^NEATPopulation population] 
-                          (NEATTraining. (implement-CalculateScore minimize? score-fun) population))) 
- ;:else (throw (IllegalArgumentException. "Unsupported training method!"))      
+                          (NEATTraining. (implement-CalculateScore (:minimize? opts) (:fitness-fn opts)) 
+                                         (:input opts) (:output opts) (:population-size opts))
+                          (NEATTraining. (implement-CalculateScore (:minimize? opts) (:fitness-fn opts)) 
+                                         (:population-object opts))) 
+ ;:else (throw (IllegalArgumentException. "Unsupported training method!"))     
 ))
 
 
@@ -195,7 +218,8 @@
 (defn train 
 "Does the actual training. This is a potentially lengthy and costly process. 
  This is an overloaded fucntion. It is up to you whether you want to provide limits for error-tolerance, 
- iteration-number or both. Regardless of the limitations however, this  functions will return the best network so far."
+ iteration-number or both. Regardless of the limitations however, this  function will return the best network so far
+ as a result of training."
 ([^MLTrain method error-tolerance limit strategies] ;;eg: (new RequiredImprovementStrategy 5) 
 (when (seq strategies) (dotimes [i (count strategies)] 
                        (.addStrategy method (get strategies i))))
@@ -203,7 +227,7 @@
        (if (< limit epoch) (.getMethod method) ;failed to converge - return the best network
        (do (.iteration method)
            (println "Iteration #" (Format/formatInteger epoch) 
-                    "Error:" (Format/formatPercent (. method getError)) 
+                    "Error:" (Format/formatPercent (.getError method)) 
                     "Target-Error:" (Format/formatPercent error-tolerance))
        (if-not (> (.getError method) error-tolerance) (.getMethod method) ;;succeeded to converge -return the best network 
        (recur (inc epoch)))))))
