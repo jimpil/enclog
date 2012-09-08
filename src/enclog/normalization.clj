@@ -44,14 +44,12 @@
 [element &{:keys [forNetwork? type column-offset index2] 
            :or {forNetwork? true type :array-1d column-offset 5}}] 
 (case type
-         :basic     (fn [] (let [inf (BasicInputField.)] 
-                            (do (. inf setCurrentValue element) inf)))  ;element must be a Number
-         :csv    (fn [] (InputFieldCSV. forNetwork? element column-offset)) ;element must be a java.io.File     
-         :array-1d  (fn [] (InputFieldArray1D. forNetwork? (double-array element))) ; element must be a seq     
-         :array-2d  (fn [index2] 
-                        (InputFieldArray2D. forNetwork? 
-                              (into-array (map double-array element)) index2)) ; element must be a 2d seq
-                 ;:else (throw (IllegalArgumentException. "Unsupported input-field type!"))    
+         :basic     (let [inf (BasicInputField.)] 
+                            (do (.setCurrentValue inf element) inf))  ;element must be a Number
+         :csv       (InputFieldCSV. forNetwork? element column-offset) ;element must be a java.io.File     
+         :array-1d  (InputFieldArray1D. forNetwork? (double-array element)) ; element must be a seq     
+         :array-2d  (InputFieldArray2D. forNetwork? 
+                        (into-array (map double-array element)) index2) ; element must be a 2d seq    
  ))
  
 (defn output
@@ -59,25 +57,18 @@
 ----------------------------------------------------------------------------------------
 :direct  :range-mapped  :z-axis   :multiplicative  :nominal 
 ----------------------------------------------------------------------------------------" 
-[input-field &{:keys [forNetwork? type]
-                       :or {type :range-mapped}}] 
+[input-field &{:keys [forNetwork? one-of-n? type top bottom]
+               :or {type :range-mapped forNetwork? true one-of-n? false bottom -1.0 top 1.0}}] 
 (case type  
-       ;will simply pass the input value to the output (not very useful)
-       :direct   (fn [] 
-                   (OutputFieldDirect. input-field))
-       :range-mapped  (fn [low high] 
-                          (OutputFieldRangeMapped. input-field low high))
-       :z-axis   (fn [group] 
-                   (OutputFieldZAxis. (ZAxisGroup.) input-field))
-       :multiplicative (fn [group] 
-                           (OutputFieldMultiplicative. 
-                           (MultiplicativeGroup.) input-field))
-       :nominal    (fn [one-of-n? high low]
-                    (if one-of-n?
-                      (doto (OutputOneOf. high low)       ;simplistic one-of-n method (not very good)
+       :direct        (OutputFieldDirect. input-field) ;will simply pass the input value to the output (not very useful)
+       :range-mapped  (OutputFieldRangeMapped. input-field bottom top)
+       :z-axis        (OutputFieldZAxis. (ZAxisGroup.) input-field)
+       :multiplicative  (OutputFieldMultiplicative. (MultiplicativeGroup.) input-field)
+       :nominal     (if one-of-n?
+                      (doto (OutputOneOf. top bottom)       ;simplistic one-of-n method (not very good)
                             (.addItem input-field))
-                      (doto (OutputEquilateral. low high) ;better alternative for nominal values usually
-                            (.addItem input-field))))
+                      (doto (OutputEquilateral. top bottom) ;better alternative for nominal values usually
+                            (.addItem input-field)))
       ;:else (throw (IllegalArgumentException. "Unsupported output-field type!")) 
 ))
 
@@ -90,7 +81,7 @@
  (do (. dn# setTarget ~storage) dn#)))
 
 (defn normalize "Function for producing normalised values. It is normally being used from within the main normalize function."
-[how ins outs max min , batch? storage] ;ins must be a seq
+[how ins outs max min batch? storage] ;ins must be a seq
 (let [norm  (make-data-normalization storage)]
 (do  (dotimes [i (count ins)] 
        (.addInputField norm   (nth ins i))
@@ -126,14 +117,14 @@
  :forNetwork? (optional -- are we normalizing for network input?)  *defaults to true
  :top  (optional -- the max value) :default  1
  :bottom    (optional -- the min value) :default -1 ." 
-[how inputs outputs &{:keys [forNetwork? top bottom raw-seq]  ;;4 keys
-             :or {forNetwork? true top 1.0 bottom -1.0}}] ;;defaults 
-(case how 
+[how inputs outputs &{:keys [forNetwork? has-headers? top bottom raw-seq source-file target-file] 
+                      :or {forNetwork? true has-headers? false top 1.0 bottom -1.0}}] ;;defaults 
+(case how  
        :array-range  (let [norm (NormalizeArray.)] ;convenient array normalization
                        (do (.setNormalizedHigh norm top)
                            (.setNormalizedLow norm  bottom)  
                            (.process norm  (double-array raw-seq))))
-       :csv-range    (fn [source-file target-file  has-headers?] ;convenient csv file normalization
+       :csv-range    ;convenient csv file normalization
                        (let [input  (java.io.File. source-file)
                              output (java.io.File. target-file)
                              analyst (EncogAnalyst.) 
@@ -143,7 +134,7 @@
                             (.analyze norm  input has-headers? CSVFormat/ENGLISH analyst)
                             ;(. norm setOutputFormat CSVFormat/ENGLISH)
                             (.setProduceOutputHeaders norm  has-headers?)
-                            (.normalize  norm normalize output))))     
+                            (.normalize  norm normalize output)))     
                              
                              
        ;maps a seq of numbers to a specific range. For Support Vector Machines and many neural networks based on the 
