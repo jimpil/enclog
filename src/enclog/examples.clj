@@ -224,15 +224,15 @@ wraps a call to your real fitness-function (like here) seems a good choice."
 ;--------------------------------*NORMALIZATION EXAMPLES*--------------------------------------------------------
 (def dummy1 [1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0 9.0 10.0])
 (def dummy2 [[1.0 2.0 -3.0 4.0 5.0] 
-           [ -11.0 12.0 -13.0 14.0 -15.0] 
-           [ -2 5 7 -9 8]])
+           [-11.0 12.0 -13.0 14.0 -15.0] 
+           [-2 5 7 -9 8]])
 
 (defn norm-ex-1d [] ;;example with 1d array
 (let [source dummy1
       size (count source)            
       input-field   (input source :forNetwork? false :type :array-1d)  
       output-field  (output input-field  :type :range-mapped :bottom 0.1 :top 0.9)
-      target        (target-storage :norm-array size)
+      target        (target-storage :norm-array [size nil])
       ready         ((prepare :range [input-field] ;needs to be seqable
                                      [output-field] ;same here 
                                      :top    0.9 
@@ -257,7 +257,7 @@ wraps a call to your real fitness-function (like here) seems a good choice."
       input-fields-2d  (for [i (range column-length)]
                          (input source :forNetwork? false :type :array-2d :index2 i))        
       output-fields-2d   (for [inpf input-fields-2d] (output inpf :type :range-mapped :bottom 0.1 :top 0.9))
-      target           (target-storage :norm-array2d row-length column-length)
+      target           (target-storage :norm-array2d [row-length column-length])
       ready           ((prepare :range input-fields-2d ;already seqables
                                        output-fields-2d  
                                       :top 0.9 
@@ -286,8 +286,8 @@ wraps a call to your real fitness-function (like here) seems a good choice."
                       ((input (java.io.File. source) :forNetwork? false 
                                       :type :csv 
                                       :column-offset i)))
-      output-fields (for [i input-fields] ((output i :type :range-mapped) min max))
-      storage ((target-storage :norm-csv) target)
+      output-fields (for [i input-fields] (output i :type :range-mapped :bottom min :top max))
+      storage (target-storage :norm-csv :target-file target)
       ready ((prepare :range input-fields 
                              output-fields
                              :top max
