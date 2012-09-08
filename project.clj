@@ -1,4 +1,4 @@
-(defproject enclog "0.5.2-SNAPSHOT"
+(defproject enclog "0.5.3-SNAPSHOT"
   :description "Thin Clojure wrapper for Encog(v3) Machine-Learning framework."
   :url "http://github.com/jimpil/enclog"
   :license {:name "Eclipse Public License"
