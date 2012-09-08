@@ -236,7 +236,7 @@
 (when (seq strategies) (dotimes [i (count strategies)] 
                        (.addStrategy method (get strategies i))))
 (do (EncogUtility/trainToError method error-tolerance)
-                                (. method getMethod)))
+                                (.getMethod method)))
 
 ([^MLTrain method strategies] ;;need only one iteration - SVMs or Nelder-Mead training for example
  (when (seq strategies) (dotimes [i (count strategies)] 
