@@ -18,8 +18,8 @@
 (let [xor-input [[0.0 0.0] [1.0 0.0] [0.0 0.1] [1.0 1.0]]
       xor-ideal [[0.0] [1.0] [1.0] [0.0]] 
       dataset   (data :basic-dataset xor-input xor-ideal)
-      network   (network  (activation :sigmoid) 
-                               (neural-pattern :feed-forward)
+      network   (network  (neural-pattern :feed-forward) 
+                          (activation :sigmoid) 
                                :input   2
                                :output  1
                                :hidden [2]) ;a single hidden layer
@@ -89,8 +89,8 @@ wraps a call to your real fitness-function (like here) seems a good choice."
 (defn lunar-lander 
 "The Lunar-Lander example which can be trained with a GA/simulated annealing. Returns the best evolved network."
 [popu]
-(let [network (network  (activation :tanh) 
-                             (neural-pattern :feed-forward)
+(let [network (network  (neural-pattern :feed-forward) 
+                        (activation :tanh) 
                              :input   3
                              :output  1
                              :hidden [50]) ;a single hidden layer of 50 neurons
@@ -162,12 +162,12 @@ wraps a call to your real fitness-function (like here) seems a good choice."
       window-size 30 ;input layer count
       train-end 259
       evaluation-end (dec (count spots))
-      normalizedSunspots (prepare :array-range nil nil :raw-seq spots :ceiling 0.9 :floor 0.1);using quick method
+      normalizedSunspots (prepare :array-range nil nil :raw-seq spots :top 0.9 :bottom 0.1);using quick method
       closedLoopSunspots (EngineArray/arrayCopy normalizedSunspots)
       train-set         ((data :temporal-window normalizedSunspots) 
                          window-size 1) 
-      network ((network (activation :tanh) 
-                             (neural-pattern :svm)
+      network ((network (neural-pattern :svm) 
+                        (activation :tanh) 
                               :input   window-size
                               :output  1      
                               :hidden [0]) nil nil)  ;;passing nil so default values are given for svm/kernel type
@@ -203,7 +203,7 @@ wraps a call to your real fitness-function (like here) seems a good choice."
 (let [input [[-1.0, -1.0, 1.0, 1.0 ] 
              [1.0, 1.0, -1.0, -1.0]]
       dataset (data :basic-dataset input nil);there is no ideal data (unsupervised)
-      network (network nil (neural-pattern :som) :input 4 :output 2)
+      network (network (neural-pattern :som) nil :input 4 :output 2)
       trainer ((trainer :basic-som) network 0.7 dataset (make-neighborhoodF :single))      
      ]
      ;(do (train trainer 0.1 10))
