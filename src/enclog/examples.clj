@@ -18,18 +18,18 @@
 (let [xor-input [[0.0 0.0] [1.0 0.0] [0.0 0.1] [1.0 1.0]]
       xor-ideal [[0.0] [1.0] [1.0] [0.0]] 
       dataset   (data :basic-dataset xor-input xor-ideal)
-      network   (network  (neural-pattern :feed-forward) 
+      net   (network  (neural-pattern :feed-forward) 
                           (activation :sigmoid) 
                                :input   2
                                :output  1
                                :hidden [2]) ;a single hidden layer
-      trainer   ((trainer :resilient-prop) network dataset)]
+      trainer   (trainer :resilient-prop :network net :training-set dataset)]
      ;;make use of the boolean parameter
       (if train-to-error? 
          (train trainer 0.01 []) ;train to max error regardless of iterations
          (train trainer 0.01 300 [] #_[(RequiredImprovementStrategy. 5)])) ;;train to max iterations and max error
      (do (println "\nNeural Network Results:")
-     (evaluate network dataset)))) 
+     (evaluate net dataset)))) 
       
     ;(loop [t false counter 0 _ nil] 
     ;  (if t (println "Nailed it after" (str counter) "times!")
@@ -77,25 +77,30 @@
 (defmacro pilot-score 
 "The fitness function for the GA. You will usually pass your own to the GA. A macro that simply 
 wraps a call to your real fitness-function (like here) seems a good choice." 
-[network] 
-`(. (NeuralPilot. ~network false) scorePilot))
+[net] 
+`(.scorePilot (NeuralPilot. ~net false)))
 
 (defn try-it [best-evolved] 
 (println"\nHow the winning network landed:")
 (let [evolved-pilot (NeuralPilot. best-evolved true)]
-(println (. evolved-pilot scorePilot))))
+(println (.scorePilot evolved-pilot))))
 
 
 (defn lunar-lander 
 "The Lunar-Lander example which can be trained with a GA/simulated annealing. Returns the best evolved network."
 [popu]
-(let [network (network  (neural-pattern :feed-forward) 
-                        (activation :tanh) 
-                             :input   3
-                             :output  1
-                             :hidden [50]) ;a single hidden layer of 50 neurons
-      trainer   ((trainer :genetic) network (randomizer :nguyen-widrow) 
-                                                 (pilot-score network) false  popu 0.1 0.25)
+(let [net (network  (neural-pattern :feed-forward) 
+                    (activation :tanh) 
+                        :input   3
+                        :output  1
+                        :hidden [50]) ;a single hidden layer of 50 neurons
+      trainer   (trainer :genetic :network net 
+                                  :randomizer (randomizer :nguyen-widrow) 
+                                  :fitness-fn (pilot-score net) 
+                                  :minimize? false  
+                                  :population-size popu 
+                                  :mutation-percent 0.1  
+                                  :mate-percent 0.25)
      ]    
      (loop [epoch 1
             _     nil
@@ -164,15 +169,13 @@ wraps a call to your real fitness-function (like here) seems a good choice."
       evaluation-end (dec (count spots))
       normalizedSunspots (prepare :array-range nil nil :raw-seq spots :top 0.9 :bottom 0.1);using quick method
       closedLoopSunspots (EngineArray/arrayCopy normalizedSunspots)
-      train-set         ((data :temporal-window normalizedSunspots) 
-                         window-size 1) 
-      network ((network (neural-pattern :svm) 
-                        (activation :tanh) 
-                              :input   window-size
-                              :output  1      
-                              :hidden [0]) nil nil)  ;;passing nil so default values are given for svm/kernel type
-      trainer                ((trainer :svm) network train-set) 
-      nf                     (NumberFormat/getNumberInstance)]
+      train-set         ((data :temporal-window normalizedSunspots) window-size 1) 
+      net  (network (neural-pattern :svm) 
+                    (activation :tanh) ;will be ignored
+                     :input  window-size)   ;;default values will be given for svm/kernel type
+      trainer       (trainer :svm :network net 
+                                  :training-set train-set) 
+      nf               (NumberFormat/getNumberInstance)]
 (do (. trainer iteration) ;;SVM TRAINED AND READY FOR PREDICTIONS AFTER THIS LINE
     (. nf setMaximumFractionDigits 4)
     (. nf setMinimumFractionDigits 4)
@@ -183,14 +186,14 @@ wraps a call to your real fitness-function (like here) seems a good choice."
     (dotimes [i (. input size)] 
     (. input setData i 
             (aget normalizedSunspots (+ i (- evaluation-start window-size)))))
-              (let [output (. network compute input)
-                    prediction (. output getData 0)
+              (let [output (.compute net  input)
+                    prediction (.getData output  0)
                     _          (aset closedLoopSunspots evaluation-start prediction)]                   
-                    (dotimes [y (. input size)]
+                    (dotimes [y (.size input)]
                     (. input setData y 
                              (aget closedLoopSunspots  (+ y (- evaluation-start window-size)))))
-                              (let [output2 (. network compute input)
-                              closed-loop (. output2 getData 0)]
+                              (let [output2 (.compute net  input)
+                              closed-loop   (.getData output2  0)]
                               (println  (+ start-year evaluation-start)
                                         \tab (. nf format (aget normalizedSunspots evaluation-start))
                                         \tab (. nf format prediction)
@@ -203,8 +206,11 @@ wraps a call to your real fitness-function (like here) seems a good choice."
 (let [input [[-1.0, -1.0, 1.0, 1.0 ] 
              [1.0, 1.0, -1.0, -1.0]]
       dataset (data :basic-dataset input nil);there is no ideal data (unsupervised)
-      network (network (neural-pattern :som) nil :input 4 :output 2)
-      trainer ((trainer :basic-som) network 0.7 dataset (make-neighborhoodF :single))      
+      net (network (neural-pattern :som) nil :input 4 :output 2)
+      trainer (trainer :basic-som :network net 
+                                  :training-set dataset  
+                                  :learning-rate 0.7
+                                  :neighborhood-fn (neighborhood-F :single))      
      ]
      ;(do (train trainer 0.1 10))
      (dotimes [i 10] (.iteration trainer)) ;training complete
