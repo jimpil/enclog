@@ -47,7 +47,7 @@
  :folded (not wrapped) 
  Returns the actual MLData object or a closure that needs to be called again with extra arguments." 
 [of-type & data]
-(condp = of-type
+(case of-type
    :basic         (if (number? data) (BasicMLData. (count (first data))) ;initialised empty  
                                      (BasicMLData. (double-array (first data)))) ;initialised with train data
    :basic-complex nil ;;TODO
@@ -58,12 +58,12 @@
    ;:temporal-dataset (TemporalMLDataSet. ) 
    :temporal-window (fn [window-size prediction-size]
                            (let [twa (TemporalWindowArray. window-size prediction-size)]
-                           (do (. twa analyze (doubles (first data))) 
-                               (. twa process (doubles (first data)))))) ;returns array of doubles
+                           (do (.analyze twa (doubles (first data))) 
+                               (.process twa (doubles (first data)))))) ;returns array of doubles
                            
                                                           
    ;:folded (FoldedDataSet.)
-:else (throw (IllegalArgumentException. "Unsupported data model!"))
+;:else (throw (IllegalArgumentException. "Unsupported data model!"))
 ))
 
 (defn make-neighborhoodF 
@@ -72,7 +72,7 @@
  :single  :bubble  :rbf  :rbf1D
  -----------------------------------------------" 
 [type] 
-(condp = type 
+(case type 
        :single (NeighborhoodSingle.) 
        :bubble (fn [radius] (NeighborhoodBubble. (int radius)))
        :rbf    (fn [^RBFEnum t & dims] (NeighborhoodRBF. (int-array dims) t))
@@ -91,7 +91,7 @@
  we choose rbf/rbf1D neighborhood functions. Generally this will be a :gaussian function.
  Other options include :multiquadric, :inverse-multiquadric, :mexican-hat." 
  [what] 
- (condp = what
+ (case what
         :gaussian     (RBFEnum/Gaussian)
         :multiquadric (RBFEnum/Multiquadric)
         :inverse-multiquadric  (RBFEnum/InverseMultiquadric)
@@ -101,12 +101,12 @@
 (defn randomizer 
 "Constructs a Randomizer object. Options include:
  ------------------------------------------------
- :basic    :range   :consistent   :distort  
- :constant :fan-in  :gaussian     :nguyen-widrow 
+ :range    :consistent   :distort   :gaussian  
+ :constant :fan-in       :nguyen-widrow 
  ------------------------------------------------
  Returns a Randomizer object or a closure that needs extra args." 
 [type]
-(condp = type
+(case type
     :range      (fn [min-val max-val] (RangeRandomizer. min-val max-val)) ;range randomizer
     :consistent (fn [min-rand max-rand] (ConsistentRandomizer. min-rand max-rand)) ;consistent range randomizer
     :constant   (fn [constant] (ConstRandomizer. constant))
@@ -122,9 +122,9 @@
  MLMethod (network) -- double -- double[] -- double[][] -- Matrix -- clj-vector (1d / 2d).
  Note: Not all randomizers implement randomize() (only FanIn)." 
 [^Randomizer randomizer data]
-(if-not (vector? data) (do (.randomize randomizer data) data)
-(let [res2 (when (vector? (first data)) (into-array (map #(into-array Double/TYPE %) data)))
-      res1 (when-not res2 (double-array data))]
+(if-not (vector? data) (do (.randomize randomizer data) data) ;;not a vector (presumably an array)
+(let [res2 (when (vector? (first data)) (into-array (map #(into-array Double/TYPE %) data))) ;;2d vector
+      res1 (when-not res2 (double-array data))] ;;1d vector
   (cond res2 (do (.randomize randomizer res2) (vec (map vec res2))) ;got vectors return vectors
         res1 (do (.randomize randomizer res1) (vec res1)) ;got vector return vector
   :else "Nothing happened!!!")))) 
@@ -151,7 +151,7 @@
  ------------------------------------------------------------- 
  Returns a MLTrain object."
 [method]
-(condp = method
+(case method
        :simple     (fn [net tr-set learn-rate] (TrainAdaline.  net tr-set (if (nil? learn-rate) 2.0 learn-rate)))
        :back-prop  (fn [net tr-set] (Backpropagation. net tr-set))
        :manhattan  (fn [net tr-set learn-rate] (ManhattanPropagation. net tr-set learn-rate))
@@ -177,7 +177,7 @@
                           (NEATTraining. (implement-CalculateScore minimize? score-fun) input output population-size))
                        ([score-fun minimize? ^NEATPopulation population] 
                           (NEATTraining. (implement-CalculateScore minimize? score-fun) population))) 
- :else (throw (IllegalArgumentException. "Unsupported training method!"))      
+ ;:else (throw (IllegalArgumentException. "Unsupported training method!"))      
 ))
 
 
@@ -193,7 +193,9 @@
                 
                                
 (defn train 
-"Does the actual training. This is a potentially lengthy and costly process. Returns true or false depending on whether the error target was met within the iteration limit. This is an overloaded fucntion. It is up to you whether you want to provide limits for error-tolerance, iteration-number or both. Regardless of the limitations however, this  functions will always return the best network so far."
+"Does the actual training. This is a potentially lengthy and costly process. 
+ This is an overloaded fucntion. It is up to you whether you want to provide limits for error-tolerance, 
+ iteration-number or both. Regardless of the limitations however, this  functions will return the best network so far."
 ([^MLTrain method error-tolerance limit strategies] ;;eg: (new RequiredImprovementStrategy 5) 
 (when (seq strategies) (dotimes [i (count strategies)] 
                        (.addStrategy method (get strategies i))))
