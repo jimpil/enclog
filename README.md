@@ -22,7 +22,7 @@ The jar(s)?
 As usual, it lives on clojars. Just add:
 ``` clojure
 [org.encog/encog-core "3.1.0"]   ;official encog 3.1 release 
-[enclog "0.5.2-SNAPSHOT"] ;my code
+[enclog "0.5.3-SNAPSHOT"] ;my code
 ```
 to your :dependencies and you 're good to go...
 
@@ -33,7 +33,7 @@ Quick demo:
 
 ``` clojure
 (use '[cemerick.pomegranate :only (add-dependencies)])
-(add-dependencies :coordinates '[[enclog "0.5.2-SNAPSHOT"]] 
+(add-dependencies :coordinates '[[enclog "0.5.3-SNAPSHOT"]] 
                   :repositories (merge cemerick.pomegranate.aether/maven-central {"clojars" "http://clojars.org/repo"}))
 (use '[enclog nnets training])
 ```
@@ -43,7 +43,7 @@ Ok, most the networks are already functional so let's go ahead and make one. Let
 ``` clojure
 (def net  
     (network  (neural-pattern :feed-forward) 
-              (activation :sigmoid) 
+               :activation :sigmoid 
                :input   2
                :output  1
                :hidden [2])) ;;a single hidden layer 
