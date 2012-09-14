@@ -1,13 +1,13 @@
 (ns enclog.examples
 (:use [enclog.nnets]
       [enclog.training]
-      [enclog.normalization])
+      [enclog.normalization]
+      [enclog.util])
 (:import ;(org.encog.ml.train.strategy RequiredImprovementStrategy)
          (org.encog.neural.networks.training TrainingSetScore)
          (org.encog.util EngineArray)
          (org.encog.neural.neat.training NEATTraining)
          (org.encog.neural.neat NEATPopulation NEATNetwork)
-         (org.encog.ml.kmeans KMeansClustering)
          (org.encog.ml.genetic.genome Genome CalculateGenomeScore)
          ;(org.encog.util.simple EncogUtility)
          (java.text NumberFormat)))
@@ -297,21 +297,26 @@ wraps a call to your real fitness-function (like here) seems a good choice."
 
 ;------------------------------------------------------------------------------------------------------------
 ;-----------------------------*CLUSTERING EXAMPLE*-----------------------------------------------------------
-
-(defn kmeans [k]  ;simple k-means clustering 
-(let [raw-data [[28 15 22] [16 15 32] [32 20 44] [1 2 3] [3 2 1]] ;the data to be clustered
-      wrapped-data (map #(data :basic %) raw-data)   ;wrap each inner vector into a BasicMLData object
-      dataset (let [ds (data :basic-dataset)] (doseq [el wrapped-data] (.add ds el)) ds) ;make dataset with no ideal data
-      kmeans  (KMeansClustering. k dataset) ;the actual K-Means object
-      ready   (.iteration kmeans 100) ;100 iterations is more than enough for this toy-dataset
-      clusters (.getClusters kmeans) ; the actual clusters - an array of MLCluster objects
-      numClusters (.numClusters kmeans)] ; the total number of clusters (k)
-      {:number-of-clusters numClusters 
-       :clusters clusters 
-       :cluster1-contents (str (.getData (first clusters)))
-       :cluster2-contents (str (.getData (second clusters)))}
-       ))
-
+     
+  ;(vec (repeatedly 100 (fn [] (vec (repeatedly 500 #(rand-int 50))))))  ;;100 vectors containing 500 random elements
+ 
+(defn simple-cluster [& args]
+(apply cluster args)) 
+  
+#_(defn cluster 
+"Simple k-means clustering. Expects raw-data (2d vector), k value and number of iterations." 
+[raw-data k iterations]
+(let [wrapped (map #(data :basic %) raw-data) ;wrap each inner vector into a BasicMLData object
+      dataset (let [ds (data :basic-dataset)] 
+                (doseq [el wrapped] (.add ds el)) ds) ;make dataset with no ideal data  
+      kmeans  (KMeansClustering. k dataset)  ;the actual K-Means object  
+      ready   (.iteration kmeans iterations) ;how many iterations
+      clusters (.getClusters kmeans) ]       ;the actual clusters - an array of MLCluster objects      
+ (->>  clusters 
+   (map #(.getData %))
+   (interleave (range 1 (inc k)))
+   (apply sorted-map-by >)        
+   (merge {:number-of-clusters (.numClusters kmeans)}))))               
 
 ;---------------------------------------------------------------------------------------------------------------
 ;--------------------------------TRAVELLING-SALESMAN-PROBLEM*---------------------------------------------------
@@ -360,7 +365,7 @@ Proximable
                (.setMutationPercent 0.1)
                (.setPercentToMate  0.25)
                (.setMatingPopulation 0.5)
-               (.setCrossover (SpliceNoRepeat. ((comp #(/ % 3) count) cities)))
+               (.setCrossover (SpliceNoRepeat. (apply (comp #(/ % 3) count) cities)))
                (.setMutate (MutateShuffle.))
                (.setCalculateScore tsp-fitness)
                (.setPopulation (BasicPopulation. pop-size)))]
@@ -401,10 +406,10 @@ Proximable
 ;run the lunar lander example using main otherwise the repl will hang under leiningen. 
 (defn -main [] 
 ;(xor true)
-(xor false)
+;(xor false)
 ;(xor-neat false)
-(kmeans 2)
-(predict-sunspot sunspots)
-(norm-ex-1d) 
+(simple-cluster [[28 15 22] [16 15 32] [32 20 44] [1 2 3] [3 2 1]] 2 100)
+;(predict-sunspot sunspots)
+;(norm-ex-1d) 
 ;(try-it (lunar-lander 1000))
 )
