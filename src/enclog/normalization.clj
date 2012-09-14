@@ -34,7 +34,7 @@
  (target-storage :norm-array2d 50 20) ;;50 rows 20 columns
  (target-storage :norm-dataset 50 30) ;;input-count & ideal-count
  (target-storage :norm-csv :target-file (str 'some-file.csv))  " 
-[type [size1 size2] &{:keys [target-file]}]
+[type [size1 size2] & {:keys [target-file]}]
 (case type
        :norm-array     (NormalizationStorageArray1D. (make-array Double/TYPE size1)) ;just rows
        :norm-array2d   (NormalizationStorageArray2D. (make-array Double/TYPE size1 size2)) ;columns, rows
@@ -49,8 +49,8 @@
 ----------------------------------------------------------------------------------------
 :basic   :csv   :array-1d    :array-2d  
 ----------------------------------------------------------------------------------------" 
-[element &{:keys [forNetwork? type column-offset index2] 
-           :or {forNetwork? true type :array-1d column-offset 5}}] 
+[element & {:keys [forNetwork? type column-offset index2] 
+            :or {forNetwork? true type :array-1d column-offset 5}}] 
 (case type
          :basic     (let [inf (BasicInputField.)] 
                             (do (.setCurrentValue inf element) inf))  ;element must be a Number
@@ -65,7 +65,7 @@
 ----------------------------------------------------------------------------------------
 :direct  :range-mapped  :z-axis   :multiplicative  :nominal 
 ----------------------------------------------------------------------------------------" 
-[input-field &{:keys [forNetwork? one-of-n? type top bottom]
+[input-field & {:keys [forNetwork? one-of-n? type top bottom]
                :or {type :range-mapped forNetwork? true one-of-n? false bottom -1.0 top 1.0}}] 
 (case type  
        :direct        (OutputFieldDirect. input-field) ;will simply pass the input value to the output (not very useful)
@@ -81,12 +81,9 @@
 ))
 
 
-                         
-
-
 (defmacro make-data-normalization [storage] 
-`(let [dn# (DataNormalization.)]
- (do (. dn# setTarget ~storage) dn#)))
+`(doto (DataNormalization.) 
+ (.setTarget ~storage)))
 
 (defn normalize "Function for producing normalised values. It is normally being used from within the main normalize function."
 [how ins outs max min batch? storage] ;ins must be a seq
@@ -116,7 +113,7 @@
  :how    (mandatory -- the normalization technique to use) 
  Options include:
               :array-range (This is the quickest way to normalize a 1d array within a range)  
-              :csv-range   (This is what you use if you can't get rid of headers from csv file.))
+              :csv-range   (This is what you use for csv files.))
               :range  (This involves creating proper input/output fields for columns of either a 1d or a 2d structure))
               :z-axis (This is good for  consistent vector lengths, often for SOMs. Usually a better choice than multiplicative)
               :multiplicative 
@@ -124,9 +121,12 @@
  outputs (mandatory -- the OutputFields), 
  :forNetwork? (optional -- are we normalizing for network input?)  *defaults to true
  :top  (optional -- the max value) :default  1
- :bottom    (optional -- the min value) :default -1 ." 
-[how inputs outputs &{:keys [forNetwork? has-headers? top bottom raw-seq source-file target-file] 
-                      :or {forNetwork? true has-headers? false top 1.0 bottom -1.0}}] ;;defaults 
+ :bottom    (optional -- the min value) :default -1 
+ :has-headers? (optional -- csv file includes headers?) *defaults to true
+ :source-file (optional -- where to read from)
+ :target-file (optional -- where to write to)." 
+[how inputs outputs & {:keys [forNetwork? has-headers? top bottom raw-seq source-file target-file] 
+                       :or {forNetwork? true has-headers? false top 1.0 bottom -1.0}}] ;;defaults 
 (case how  
        :array-range  (let [norm (NormalizeArray.)] ;convenient array normalization
                        (do (.setNormalizedHigh norm top)
@@ -142,9 +142,7 @@
                             (.analyze norm  input has-headers? CSVFormat/ENGLISH analyst)
                             ;(. norm setOutputFormat CSVFormat/ENGLISH)
                             (.setProduceOutputHeaders norm  has-headers?)
-                            (.normalize  norm normalize output)))     
-                             
-                             
+                            (.normalize  norm normalize output)))                                  
        ;maps a seq of numbers to a specific range. For Support Vector Machines and many neural networks based on the 
        ;HTAN activation function the input must be in the range of -1 to 1. If you are using a sigmoid activation function
        ;you should normalize to the range 0 - 1.
