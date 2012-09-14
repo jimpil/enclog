@@ -35,7 +35,8 @@
        (org.encog.mathutil.randomize Randomizer BasicRandomizer ConsistentRandomizer 
                                      ConstRandomizer FanInRandomizer Distort GaussianRandomizer
                                      NguyenWidrowRandomizer RangeRandomizer)
-       (org.encog.util.arrayutil TemporalWindowArray)))
+       (org.encog.util.arrayutil TemporalWindowArray)
+       (org.encog.ml.kmeans KMeansClustering)))
 
 
 ;--------------------------------------*SOURCE*--------------------------------------------------------------------------------
@@ -141,6 +142,25 @@
   (cond res2 (do (.randomize randomizer res2) (vec (map vec res2))) ;got 2d vector return 2d-vectos
         res1 (do (.randomize randomizer res1) (vec res1)) ;got 1d-vector return 1d-vector
   :else "Nothing happened!!!")))) 
+  
+  
+  
+(defn cluster 
+"Simple k-means clustering. Expects raw-data (2d vector), k value and number of iterations.
+ Returns a hash-map where keys are numbers from 1 to however many clusters we got back and 
+ values are vectors holding the clustered BasicMLData objects." 
+[raw-data k iterations]
+(let [wrapped (map #(data :basic %) raw-data) ;wrap each inner vector into a BasicMLData object
+      dataset (let [ds (data :basic-dataset)] 
+                (doseq [el wrapped] (.add ds el)) ds) ;make dataset with no ideal data  
+      kmeans  (KMeansClustering. k dataset)  ;the actual K-Means object  
+      ready   (.iteration kmeans iterations) ;how many iterations
+      clusters (.getClusters kmeans) ]       ;the actual clusters - an array of MLCluster objects      
+ (->> clusters 
+   (map (comp vec #(.getData %)))
+   (interleave (range 1 (inc k)))
+   (apply sorted-map-by >)        
+   (merge {:number-of-clusters (.numClusters kmeans)}))))  
                              
 
 (defmacro implement-CalculateScore 
