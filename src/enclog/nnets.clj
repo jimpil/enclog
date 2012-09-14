@@ -10,7 +10,7 @@
        ActivationLinear  ActivationLOG ActivationRamp ActivationSoftMax ActivationStep
        ActivationSIN ActivationBipolarSteepenedSigmoid ActivationClippedLinear
        ActivationCompetitive ActivationElliott ActivationElliottSymmetric ActivationSteepenedSigmoid)     
-    
+(org.encog.ml.bayesian BayesianNetwork BayesianEvent)    
    ))
 
 
@@ -21,7 +21,7 @@
  -------------------------------------------------------------
  :feed-forward  :adaline  :art1  :bam  :boltzman      
  :jordan        :elman    :svm   :rbf  :hopfield    
- :som           :pnn      :cpn                  
+ :som           :pnn      :cpn   :bayesian (returns keyword)               
  -------------------------------------------------------------
  Returns an object that implements NeuralNetworkPattern."
   [model & {:as opts}]
@@ -37,7 +37,7 @@
        :jordan       (JordanPattern.)
        :som          (SOMPattern.)
        :pnn          (PNNPattern.)
-      ; :bayesian    (record )
+       :bayesian     :Bayesian ;;there is no pattern to instantiate - this is useless - call network instead
        :svm         (if-not (:regression? opts) (SVMPattern.)
                             (doto (SVMPattern.) (.setRegression true)))
        :rbf          (RadialBasisPattern.)
@@ -241,7 +241,15 @@ Returns the complete neural-network object with randomized weights."
          (.setOutputNeurons (:output opts))
          (.setKernel kernel)
          (.setOutmodel out-model)) 
-  (.generate))))   
+  (.generate)))) 
+  
+  
+(defmethod network clojure.lang.Keyword
+[pattern & {}]
+(case pattern
+    :Bayesian (BayesianNetwork.)
+    :bayesian (BayesianNetwork.)
+))    
 ;-----------------------------------------------------------------------------------    
 
 (defmethod network :default 
