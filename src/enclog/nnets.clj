@@ -37,6 +37,7 @@
        :jordan       (JordanPattern.)
        :som          (SOMPattern.)
        :pnn          (PNNPattern.)
+      ; :bayesian    (record )
        :svm         (if-not (:regression? opts) (SVMPattern.)
                             (doto (SVMPattern.) (.setRegression true)))
        :rbf          (RadialBasisPattern.)
