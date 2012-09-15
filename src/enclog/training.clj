@@ -36,7 +36,8 @@
                                      ConstRandomizer FanInRandomizer Distort GaussianRandomizer
                                      NguyenWidrowRandomizer RangeRandomizer)
        (org.encog.util.arrayutil TemporalWindowArray)
-       (org.encog.ml.kmeans KMeansClustering)))
+       (org.encog.ml.kmeans KMeansClustering)
+       (org.encog.util.text BagOfWords)))
 
 
 ;--------------------------------------*SOURCE*--------------------------------------------------------------------------------
@@ -160,7 +161,10 @@
    (map (comp vec #(.getData %)))
    (interleave (range 1 (inc k)))
    (apply sorted-map-by >)        
-   (merge {:number-of-clusters k}))))  
+   (merge {:number-of-clusters k})))) 
+   
+(defn bag-of-words [k]
+(BagOfWords. k))    
                              
 
 (defmacro implement-CalculateScore 
