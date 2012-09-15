@@ -37,8 +37,8 @@
        :jordan       (JordanPattern.)
        :som          (SOMPattern.)
        :pnn          (PNNPattern.)
-       :bayesian     :Bayesian ;;there is no pattern to instantiate - this is useless - call network instead
-       :svm         (if-not (:regression? opts) (SVMPattern.)
+       :bayesian     :bayesian ;;there is no pattern to instantiate - this is useless - call network instead
+       :svm          (if-not (:regression? opts) (SVMPattern.)
                             (doto (SVMPattern.) (.setRegression true)))
        :rbf          (RadialBasisPattern.)
  ;:else (throw (IllegalArgumentException. "Unsupported neural-pattern!"))
@@ -78,6 +78,11 @@
       :steepened-sigmoid (ActivationSteepenedSigmoid.)
  ;:else (throw (IllegalArgumentException. "Unsupported activation-function!"))
  ))
+ 
+ (defn bayesian-event [label & choices]
+ (if (nil? choices) 
+    (BayesianEvent. label)
+    (BayesianEvent. label (into-array choices))))
 
 
 (defmulti network 
@@ -245,10 +250,14 @@ Returns the complete neural-network object with randomized weights."
   
   
 (defmethod network clojure.lang.Keyword
-[pattern & {}]
+[pattern & {:as opts}]
 (case pattern
-    :Bayesian (BayesianNetwork.)
-    :bayesian (BayesianNetwork.)
+    :bayesian (let [n (BayesianNetwork.)] (doseq [[label & choices] (:events opts)] 
+                                             (.createEvent n (apply bayesian-event label choices)))
+                                          (doseq [[e1 e2] (partition 2  (:dependencies opts))]
+                                            (.createDependency n (.get (.getEventMap n) e1) 
+                                                                 (.get (.getEventMap n) e2)))
+                                          (doto n (.finalizeStructure))) ;network ready!
 ))    
 ;-----------------------------------------------------------------------------------    
 
