@@ -146,21 +146,21 @@
   
   
 (defn cluster 
-"Simple k-means clustering. Expects raw-data (2d vector), k value and number of iterations.
+"Simple k-means clustering. Expects raw-data (2d vector), k (the number of clusters to use) and number of iterations.
  Returns a hash-map where keys are numbers from 1 to however many clusters we got back and 
  values are vectors holding the clustered BasicMLData objects." 
 [raw-data k iterations]
 (let [wrapped (map #(data :basic %) raw-data) ;wrap each inner vector into a BasicMLData object
       dataset (let [ds (data :basic-dataset)] 
                 (doseq [el wrapped] (.add ds el)) ds) ;make dataset with no ideal data  
-      kmeans  (KMeansClustering. k dataset)  ;the actual K-Means object  
+      kmeans  (KMeansClustering. k dataset)  ;the concrete K-Means object  
       ready   (.iteration kmeans iterations) ;how many iterations
       clusters (.getClusters kmeans) ]       ;the actual clusters - an array of MLCluster objects      
  (->> clusters 
    (map (comp vec #(.getData %)))
    (interleave (range 1 (inc k)))
    (apply sorted-map-by >)        
-   (merge {:number-of-clusters (.numClusters kmeans)}))))  
+   (merge {:number-of-clusters k}))))  
                              
 
 (defmacro implement-CalculateScore 
