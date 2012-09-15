@@ -5,12 +5,13 @@
       [enclog.util])
 (:import ;(org.encog.ml.train.strategy RequiredImprovementStrategy)
          (org.encog.neural.networks.training TrainingSetScore)
-         (org.encog.util EngineArray)
+         (org.encog.util EngineArray Format)
          (org.encog.neural.neat.training NEATTraining)
          (org.encog.neural.neat NEATPopulation NEATNetwork)
          (org.encog.ml.genetic.genome Genome CalculateGenomeScore)
          (org.encog.ml.bayesian EventType)
-         (org.encog.ml.bayesian.query.enumerate EnumerationQuery) 
+         (org.encog.ml.bayesian.query.enumerate EnumerationQuery)
+         (org.encog.mathutil.probability CalcProbability) 
          ;(org.encog.util.simple EncogUtility)
          (java.text NumberFormat)))
 ;--------------------------------------*XOR-CLASSIC*------------------------------------------------------------
@@ -198,7 +199,7 @@ wraps a call to your real fitness-function (like here) seems a good choice."
                               (println  (+ start-year evaluation-start)
                                         \tab (. nf format (aget normalizedSunspots evaluation-start))
                                         \tab (. nf format prediction)
-                                        \tab (. nf format closed-loop)) #_(debug-repl)) )
+                                        \tab (. nf format closed-loop))) )
 (recur (inc evaluation-start))))))))
 ;--------------------------------------------------------------------------------------------------------------
 ;--------------------------------*SIMPLE SOM EXAMPLE*----------------------------------------------------------
@@ -395,12 +396,73 @@ Proximable
                    (.setEventValue (get events "carrots") true))]
    (println (str net) "\n" "Parameter count: " (.calculateParameterCount net) "\n\n") ;display basic-stats             
    (println (str (doto enum-query (.execute)))))) ;finally run the example query
+;---------------------------------------------------------------------------------------------------
+;---------------*BayesianSpam EXAMPLE*--------------------------------------------------------------
 
+(def spam ["offer is secret", "click secret link", "secret sports link"])
+(def ham ["play sports today","went play sports", "secret sports event", "sports is today", "sports costs money"])
 
+(defn probability-spam "It doesn't go more imperative than that! " 
+[bags laplace ^String m]
+(let [net (network :bayesian)
+      words (clojure.string/split m #"\s+") ;split on space(s)
+      spam-event (.createEvent net "spam" (make-array String 0))
+      ;enum-query (EnumerationQuery. net)
+      messageProbability (CalcProbability. laplace)]
+(do       
+(dotimes [i (count words)]
+(.createDependency net spam-event
+  (.createEvent net (str (nth words i) i) (make-array String 0))))
+(.finalizeStructure net)
 
+;(println (.getEvents net))
+(let [enum-query (EnumerationQuery. net)]
+(.addClass messageProbability (count spam))
+(.addClass messageProbability (count ham))
+(.. spam-event (getTable) (addLine (.calculate messageProbability 0) true (boolean-array 0)))
+(.defineEventType enum-query spam-event EventType/Outcome)
+(.setEventValue enum-query spam-event true)
 
+(dotimes [y (count words)]
+(let [word2 (str (nth words y) y)
+      event (.getEvent net word2)] 
+ (.. event (getTable) (addLine (.probability (:spam bags) (nth words y)) true (boolean-array [true] )))
+ (.. event (getTable) (addLine (.probability (:ham bags)  (nth words y)) true (boolean-array [false])))
+ (.defineEventType enum-query event EventType/Evidence) 
+ (.setEventValue enum-query event true)))
+ 
+ (.execute enum-query) ;;SOOO CLOSE!
+ (.getProbability enum-query)))))
+ 
+(defn test-message [bags lp m]
+(let [res (probability-spam bags lp m)]
+(println "Probability of \"" m "\"being spam = " (Format/formatPercent res)))) 
 
+(defn init [laplace]
+(let [bags (zipmap [:spam :ham :total] (repeatedly 3 #(bag-of-words laplace)))]
+(do
+ (doseq [line spam]
+ (.process (:spam bags) line)
+ (.process (:total bags) line))
+ 
+ (doseq [line ham]
+ (.process (:ham bags) line)
+ (.process (:total bags) line)) 
+ 
+ (.setLaplaceClasses (:ham bags)  (.getUniqueWords (:total bags)))     
+ (.setLaplaceClasses (:spam bags) (.getUniqueWords (:total bags))) bags) ))
 
+(defn test-Laplaces [& lps]
+(dotimes [i (count lps)]
+(let [lp   (nth lps i)
+      bags (init lp)
+      test-it (partial test-message bags lp)]
+(println  "Using Laplace:" lp)
+(test-it  "today")
+(test-it  "sports" )
+(test-it  "today is secret")
+(test-it  "secret is secret"))) 'DONE!)
+;---------------------------------------------------------------------------------------------------
 
 ;---------------------------------------------------------------------------------------------------
 ;run the lunar lander example using main otherwise the repl will hang under leiningen. 
@@ -408,12 +470,13 @@ Proximable
 ;(xor true)
 ;(xor false)
 ;(xor-neat false)
-(simple-cluster [[28 15 22] [16 15 32] [32 20 44] [1 2 3] [3 2 1]] 2 20) ;the encog clustering example
+;(simple-cluster [[28 15 22] [16 15 32] [32 20 44] [1 2 3] [3 2 1]] 2 20) ;the encog clustering example
 ;from http://cs.gmu.edu/cne/modules/dau/stat/clustgalgs/clust5_bdy.html
-(simple-cluster [[1.1 60] [8.2 20] [4.2 35] [1.5 21] [7.6 15] [2 55]  [3.9 39] ] 4 20) 
-(simple-cluster [[2 10] [2 5] [8 4] [5 8] [7 5] [6 4] [1 2] [4 9] ] 3 10)
-(simple-cluster [[1 1] [2 1] [4 3] [5 4]] 2 5) ;from http://people.revoledu.com/kardi/tutorial/kMean/NumericalExample.htm
-;(simple-cluster [[1.0 1.0] [1.5 2.0] [3.0 4.0] [5.0 7.0] [3.5 5.0] [4.5 5.0] [3.5 4.5]] 2 10)
+;(simple-cluster [[1.1 60] [8.2 20] [4.2 35] [1.5 21] [7.6 15] [2 55]  [3.9 39] ] 4 20) 
+;(simple-cluster [[2 10] [2 5] [8 4] [5 8] [7 5] [6 4] [1 2] [4 9] ] 3 10)
+;(simple-cluster [[1 1] [2 1] [4 3] [5 4]] 2 5) ;from http://people.revoledu.com/kardi/tutorial/kMean/NumericalExample.htm
+;(simple-bayes)
+(test-Laplaces 0 1)
 ;(predict-sunspot sunspots)
 ;(norm-ex-1d) 
 ;(try-it (lunar-lander 1000))
