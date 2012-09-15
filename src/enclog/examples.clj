@@ -436,7 +436,7 @@ Proximable
  
 (defn test-message [bags lp m]
 (let [res (probability-spam bags lp m)]
-(println "Probability of \"" m "\"being spam = " (Format/formatPercent res)))) 
+(println "Probability of \"" m "\" being spam = " (Format/formatPercent res)))) 
 
 (defn init [laplace]
 (let [bags (zipmap [:spam :ham :total] (repeatedly 3 #(bag-of-words laplace)))]
@@ -461,6 +461,7 @@ Proximable
 (test-it  "today")
 (test-it  "sports" )
 (test-it  "today is secret")
+(test-it  "secret offer")
 (test-it  "secret is secret"))) 'DONE!)
 ;---------------------------------------------------------------------------------------------------
 
