@@ -9,6 +9,8 @@
          (org.encog.neural.neat.training NEATTraining)
          (org.encog.neural.neat NEATPopulation NEATNetwork)
          (org.encog.ml.genetic.genome Genome CalculateGenomeScore)
+         (org.encog.ml.bayesian EventType)
+         (org.encog.ml.bayesian.query.enumerate EnumerationQuery) 
          ;(org.encog.util.simple EncogUtility)
          (java.text NumberFormat)))
 ;--------------------------------------*XOR-CLASSIC*------------------------------------------------------------
@@ -298,25 +300,11 @@ wraps a call to your real fitness-function (like here) seems a good choice."
 ;------------------------------------------------------------------------------------------------------------
 ;-----------------------------*CLUSTERING EXAMPLE*-----------------------------------------------------------
      
-  ;(vec (repeatedly 100 (fn [] (vec (repeatedly 500 #(rand-int 50))))))  ;;100 vectors containing 500 random elements
+  ;(vec (repeatedly 100 (fn [] (vec (repeatedly 480 #(rand-int 50))))))  ;;100 vectors containing 480 random elements
  
 (defn simple-cluster [& args]
 (apply cluster args)) 
-  
-#_(defn cluster 
-"Simple k-means clustering. Expects raw-data (2d vector), k value and number of iterations." 
-[raw-data k iterations]
-(let [wrapped (map #(data :basic %) raw-data) ;wrap each inner vector into a BasicMLData object
-      dataset (let [ds (data :basic-dataset)] 
-                (doseq [el wrapped] (.add ds el)) ds) ;make dataset with no ideal data  
-      kmeans  (KMeansClustering. k dataset)  ;the actual K-Means object  
-      ready   (.iteration kmeans iterations) ;how many iterations
-      clusters (.getClusters kmeans) ]       ;the actual clusters - an array of MLCluster objects      
- (->>  clusters 
-   (map #(.getData %))
-   (interleave (range 1 (inc k)))
-   (apply sorted-map-by >)        
-   (merge {:number-of-clusters (.numClusters kmeans)}))))               
+                
 
 ;---------------------------------------------------------------------------------------------------------------
 ;--------------------------------TRAVELLING-SALESMAN-PROBLEM*---------------------------------------------------
@@ -377,24 +365,36 @@ Proximable
         (.sort population))))
 
 
+;-----------------------------------------------------------------------------------------------------------
+;--------------------*SimpleBayesian*-----------------------------------------------------------------------
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+(defn simple-bayes []
+(let [net (network :bayesian :events [["rained"] ["temperature"] ["gardenGrew"] ["carrots"] ["tomatoes"]] 
+                             :dependencies ["rained" "gardenGrew"
+                                            "temperature" "gardenGrew"
+                                            "gardenGrew" "carrots"
+                                            "gardenGrew"  "tomatoes"]) ;;network ready!
+      events (into {} (.getEventMap net)) ;pour the event-map it in a clojure map for convenience
+      truth-tables (do  (.. (get events "rained")      (getTable) (addLine 0.2 true (boolean-array 0)))             
+                        (.. (get events "temperature") (getTable) (addLine 0.5 true (boolean-array 0)))   
+                        (.. (get events "gardenGrew")  (getTable) (addLine 0.9 true (boolean-array [true true]))) 
+                        (.. (get events "gardenGrew")  (getTable) (addLine 0.7 true (boolean-array [false true]))) 
+                        (.. (get events "gardenGrew")  (getTable) (addLine 0.5 true (boolean-array [true false]))) 
+                        (.. (get events "gardenGrew")  (getTable) (addLine 0.1 true (boolean-array [false false])))
+                        (.. (get events "carrots")  (getTable) (addLine 0.8 true (boolean-array [true])))
+                        (.. (get events "carrots")  (getTable) (addLine 0.2 true (boolean-array [false])))
+                        (.. (get events "tomatoes") (getTable) (addLine 0.6 true (boolean-array [true])))
+                        (.. (get events "tomatoes") (getTable) (addLine 0.1 true (boolean-array [false])))
+                        (.validate net)) ;;final validation step!
+      enum-query (doto (EnumerationQuery. net) ;;example query 
+                   (.defineEventType (get  events "rained") EventType/Evidence)     ;specify 1st condition
+                   (.defineEventType (get events "temperature") EventType/Evidence) ;specify 2nd condition
+                   (.defineEventType (get events "carrots") EventType/Outcome)      ;specify outcome
+                   (.setEventValue (get  events"rained") true)
+                   (.setEventValue (get events "temperature") true)
+                   (.setEventValue (get events "carrots") true))]
+   (println (str net) "\n" "Parameter count: " (.calculateParameterCount net) "\n\n") ;display basic-stats             
+   (println (str (doto enum-query (.execute)))))) ;finally run the example query
 
 
 
@@ -408,7 +408,12 @@ Proximable
 ;(xor true)
 ;(xor false)
 ;(xor-neat false)
-(simple-cluster [[28 15 22] [16 15 32] [32 20 44] [1 2 3] [3 2 1]] 2 100)
+(simple-cluster [[28 15 22] [16 15 32] [32 20 44] [1 2 3] [3 2 1]] 2 20) ;the encog clustering example
+;from http://cs.gmu.edu/cne/modules/dau/stat/clustgalgs/clust5_bdy.html
+(simple-cluster [[1.1 60] [8.2 20] [4.2 35] [1.5 21] [7.6 15] [2 55]  [3.9 39] ] 4 20) 
+(simple-cluster [[2 10] [2 5] [8 4] [5 8] [7 5] [6 4] [1 2] [4 9] ] 3 10)
+(simple-cluster [[1 1] [2 1] [4 3] [5 4]] 2 5) ;from http://people.revoledu.com/kardi/tutorial/kMean/NumericalExample.htm
+;(simple-cluster [[1.0 1.0] [1.5 2.0] [3.0 4.0] [5.0 7.0] [3.5 5.0] [4.5 5.0] [3.5 4.5]] 2 10)
 ;(predict-sunspot sunspots)
 ;(norm-ex-1d) 
 ;(try-it (lunar-lander 1000))
