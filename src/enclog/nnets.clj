@@ -252,12 +252,13 @@ Returns the complete neural-network object with randomized weights."
 (defmethod network clojure.lang.Keyword
 [pattern & {:as opts}]
 (case pattern
-    :bayesian (let [n (BayesianNetwork.)] (doseq [[label & choices] (:events opts)] 
-                                             (.createEvent n (apply bayesian-event label choices)))
-                                          (doseq [[e1 e2] (partition 2  (:dependencies opts))]
-                                            (.createDependency n (.get (.getEventMap n) e1) 
-                                                                 (.get (.getEventMap n) e2)))
-                                          (doto n (.finalizeStructure))) ;network ready!
+    :bayesian (let [n (BayesianNetwork.)]
+    (if-not (nil? opts) (do (doseq [[label & choices] (:events opts)] 
+                               (.createEvent n (apply bayesian-event label choices)))
+                            (doseq [[e1 e2] (partition 2  (:dependencies opts))]
+                               (.createDependency n (.get (.getEventMap n) e1) 
+                                                    (.get (.getEventMap n) e2)))
+  (doto n (.finalizeStructure))) n)) ;network ready!
 ))    
 ;-----------------------------------------------------------------------------------    
 
