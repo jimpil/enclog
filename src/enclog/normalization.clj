@@ -30,9 +30,9 @@
 :norm-array   :norm-array-2d    :norm-csv[filename]      :norm-dataset
 ---------------------------------------------------------------------------
 -examples:
- (target-storage :norm-array 50)      ;;50 rows
- (target-storage :norm-array2d 50 20) ;;50 rows 20 columns
- (target-storage :norm-dataset 50 30) ;;input-count & ideal-count
+ (target-storage :norm-array [50 0])      ;;50 rows
+ (target-storage :norm-array2d [50 20]) ;;50 rows 20 columns
+ (target-storage :norm-dataset [50 30]) ;;input-count & ideal-count
  (target-storage :norm-csv :target-file (str 'some-file.csv))  " 
 [type [size1 size2] & {:keys [target-file]}]
 (case type
@@ -52,8 +52,8 @@
 [element & {:keys [forNetwork? type column-offset index2] 
             :or {forNetwork? true type :array-1d column-offset 5}}] 
 (case type
-         :basic     (let [inf (BasicInputField.)] 
-                            (do (.setCurrentValue inf element) inf))  ;element must be a Number
+         :basic     (doto (BasicInputField.) 
+                      (.setCurrentValue element))  ;element must be a Number
          :csv       (InputFieldCSV. forNetwork? element column-offset) ;element must be a java.io.File     
          :array-1d  (InputFieldArray1D. forNetwork? (double-array element)) ; element must be a seq     
          :array-2d  (InputFieldArray2D. forNetwork? 
@@ -89,7 +89,8 @@
 [how ins outs max min batch? storage] ;ins must be a seq
 (let [norm  (make-data-normalization storage)]
 (do  (dotimes [i (count ins)] 
-       (.addInputField norm   (nth ins i))
+       (.addInputField norm   (try (nth ins i) 
+                              (catch Exception e (.getValue ins i)))) ;in case an InputField came
        (.addOutputField norm  (nth outs i)))                
     (.process norm) 
     
