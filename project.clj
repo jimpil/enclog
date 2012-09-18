@@ -1,4 +1,4 @@
-(defproject enclog "0.5.3-SNAPSHOT"
+(defproject enclog "0.5.4-SNAPSHOT"
   :description "Thin Clojure wrapper for Encog(v3) Machine-Learning framework."
   :url "http://github.com/jimpil/enclog"
   :license {:name "Eclipse Public License"
@@ -9,5 +9,5 @@
   :jvm-opts ["-Xmx1g"] 
   ;:javac-options {:classpath "target/dependency/encog-core-3.1.0.jar" :destdir "target/classes"}
   ;:java-source-path "src/java"
-  ;:main     enclog.examples
+  :main     enclog.examples
   )
