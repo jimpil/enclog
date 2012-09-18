@@ -468,17 +468,17 @@ Proximable
 ;---------------------------------------------------------------------------------------------------
 ;run the lunar lander example using main otherwise the repl will hang under leiningen. 
 (defn -main [] 
-;(xor true)
+(xor true)
 ;(xor false)
-;(xor-neat false)
-;(simple-cluster [[28 15 22] [16 15 32] [32 20 44] [1 2 3] [3 2 1]] 2 20) ;the encog clustering example
+(xor-neat false)
+(simple-cluster [[28 15 22] [16 15 32] [32 20 44] [1 2 3] [3 2 1]] 2 20) ;the encog clustering example
 ;from http://cs.gmu.edu/cne/modules/dau/stat/clustgalgs/clust5_bdy.html
-;(simple-cluster [[1.1 60] [8.2 20] [4.2 35] [1.5 21] [7.6 15] [2 55]  [3.9 39] ] 4 20) 
-;(simple-cluster [[2 10] [2 5] [8 4] [5 8] [7 5] [6 4] [1 2] [4 9] ] 3 10)
+(simple-cluster [[1.1 60] [8.2 20] [4.2 35] [1.5 21] [7.6 15] [2 55]  [3.9 39] ] 4 20) 
+(simple-cluster [[2 10] [2 5] [8 4] [5 8] [7 5] [6 4] [1 2] [4 9] ] 3 10)
 ;(simple-cluster [[1 1] [2 1] [4 3] [5 4]] 2 5) ;from http://people.revoledu.com/kardi/tutorial/kMean/NumericalExample.htm
-;(simple-bayes)
+(simple-bayes)
 (test-Laplaces 0 1)
-;(predict-sunspot sunspots)
-;(norm-ex-1d) 
-;(try-it (lunar-lander 1000))
+(predict-sunspot sunspots)
+(norm-ex-1d) 
+(try-it (lunar-lander 1000))
 )
