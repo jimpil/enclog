@@ -54,7 +54,7 @@
 (case type
          :basic     (doto (BasicInputField.) 
                       (.setCurrentValue element))  ;element must be a Number
-         :csv       (InputFieldCSV. forNetwork? element column-offset) ;element must be a java.io.File     
+         :csv       (InputFieldCSV. forNetwork? (java.io.File. element) column-offset) ;element must be a string     
          :array-1d  (InputFieldArray1D. forNetwork? (double-array element)) ; element must be a seq     
          :array-2d  (InputFieldArray2D. forNetwork? 
                         (into-array (map double-array element)) index2) ; element must be a 2d seq    
