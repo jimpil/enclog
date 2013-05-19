@@ -103,12 +103,9 @@ wraps a call to your real fitness-function (like here) seems a good choice."
                                   :population-size popu 
                                   :mutation-percent 0.1  
                                   :mate-percent 0.25)
-     ]    
-     (loop [epoch 1
-            _     nil
-            best  nil]
-     (if (> epoch 200)  (do (.shutdown (org.encog.Encog/getInstance)) best) ;;return the best evolved network 
-     (recur (inc epoch) (.iteration trainer) (.getMethod trainer)))) ))
+     best (train trainer Double/NEGATIVE_INFINITY 200 [])]
+     ;(.shutdown (org.encog.Encog/getInstance))
+     best ))
 ;---------------------------------------------------------------------------------------------------------------
 ;----------------------------PREDICT-SUNSPOT-SVM------------------------------------------------------------
 
@@ -177,7 +174,7 @@ wraps a call to your real fitness-function (like here) seems a good choice."
       trainer       (trainer :svm :network net 
                                   :training-set train-set) 
       nf               (NumberFormat/getNumberInstance)]
-(do (.iteration trainer ) ;;SVM TRAINED AND READY FOR PREDICTIONS AFTER THIS LINE
+(do (train trainer []) ;;SVM TRAINED AND READY FOR PREDICTIONS AFTER THIS LINE
     (.setMaximumFractionDigits nf 4)
     (.setMinimumFractionDigits nf 4)
     (println "Year" \tab "Actual" \tab "Predict" \tab "Closed Loop Predict")     
@@ -211,16 +208,13 @@ wraps a call to your real fitness-function (like here) seems a good choice."
       trainer (trainer :basic-som :network net 
                                   :training-set dataset  
                                   :learning-rate 0.7
-                                  :neighborhood-fn (neighborhood-F :single))      
-     ]
-     ;(do (train trainer 0.1 10))
-     (dotimes [i 10] (.iteration trainer)) ;training complete
-     (let [d1 (data :basic (first input))
-           d2 (data :basic (second input))]
-            (println "Pattern 1 winner:" (. network classify d1)) 
-            (println "Pattern 2 winner:" (. network classify d2))  
-           network) ;returns the trained network at the end    
-))            
+                                  :neighborhood-fn (neighborhood-F :single)) 
+     best (train trainer Double/NEGATIVE_INFINITY 10 [])
+     d1 (data :basic (first input))
+     d2 (data :basic (second input))]
+(println "Pattern 1 winner:" (. best classify d1)) 
+(println "Pattern 2 winner:" (. best classify d2))  
+best)) ;returns the trained network at the end                
 
 ;---------------------------------------------------------------------------------------------------------------
 ;--------------------------------*NORMALIZATION EXAMPLES*--------------------------------------------------------
@@ -240,15 +234,14 @@ wraps a call to your real fitness-function (like here) seems a good choice."
                               target 
                               :top    0.9 
                               :bottom 0.1)]                        
-(println   (seq ready) "\n---------- THESE 2 SHOULD BE IDENTICAL! ----------------\n" )
-
+(println   (seq ready) "\n---------- THESE 2 SHOULD BE IDENTICAL! ----------------\n"
 ;the version below skips initialising input/output fields and storage targets...
 ;Uses arrays directly but only supports 1 dimension.
 (seq (prepare nil nil nil :how :array-range  ;inputs & outputs are nil
                           :raw-seq source 
                           :forNetwork? false
                           :top 0.9
-                          :bottom 0.1))
+                          :bottom 0.1))  )
 ))
 
 
@@ -409,8 +402,7 @@ Proximable
       words (clojure.string/split m #"\s+") ;split on space(s)
       spam-event (.createEvent net "spam" (make-array String 0))
       ;enum-query (EnumerationQuery. net)
-      messageProbability (CalcProbability. laplace)]
-(do       
+      messageProbability (CalcProbability. laplace)]     
 (dotimes [i (count words)]
 (.createDependency net spam-event
   (.createEvent net (str (nth words i) i) (make-array String 0))))
@@ -433,7 +425,7 @@ Proximable
  (.setEventValue enum-query event true)))
  
  (.execute enum-query) ;;SOOO CLOSE!
- (.getProbability enum-query)))))
+ (.getProbability enum-query))))
  
 (defn test-message [bags lp m]
 (let [res (probability-spam bags lp m)]
@@ -472,14 +464,14 @@ Proximable
 (xor true)
 ;(xor false)
 (xor-neat false)
-(simple-cluster [[28 15 22] [16 15 32] [32 20 44] [1 2 3] [3 2 1]] 2 20) ;the encog clustering example
+(println (simple-cluster [[28 15 22] [16 15 32] [32 20 44] [1 2 3] [3 2 1]] 2 20)) ;the encog clustering example
 ;from http://cs.gmu.edu/cne/modules/dau/stat/clustgalgs/clust5_bdy.html
-(simple-cluster [[1.1 60] [8.2 20] [4.2 35] [1.5 21] [7.6 15] [2 55]  [3.9 39] ] 4 20) 
-(simple-cluster [[2 10] [2 5] [8 4] [5 8] [7 5] [6 4] [1 2] [4 9] ] 3 10)
+(println (simple-cluster [[1.1 60] [8.2 20] [4.2 35] [1.5 21] [7.6 15] [2 55]  [3.9 39] ] 4 20) )
+(println  (simple-cluster [[2 10] [2 5] [8 4] [5 8] [7 5] [6 4] [1 2] [4 9] ] 3 10))
 ;(simple-cluster [[1 1] [2 1] [4 3] [5 4]] 2 5) ;from http://people.revoledu.com/kardi/tutorial/kMean/NumericalExample.htm
 (simple-bayes)
 (test-Laplaces 0 1)
 (predict-sunspot sunspots)
 (norm-ex-1d) 
-(try-it (lunar-lander 1000))
+(try-it (lunar-lander 100))
 )
