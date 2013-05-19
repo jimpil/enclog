@@ -53,11 +53,13 @@
             :or {forNetwork? true type :array-1d column-offset 5}}] 
 (case type
          :basic     (doto (BasicInputField.) 
-                      (.setCurrentValue element))  ;element must be a Number
+                      (.setCurrentValue element) ;element must be a Number
+                      (.setUsedForNetworkInput forNetwork?))  
          :csv       (InputFieldCSV. forNetwork? (java.io.File. element) column-offset) ;element must be a string     
          :array-1d  (InputFieldArray1D. forNetwork? (double-array element)) ; element must be a seq     
          :array-2d  (InputFieldArray2D. forNetwork? 
-                        (into-array (map double-array element)) index2) ; element must be a 2d seq    
+                        (into-array (map double-array element)) index2) ; element must be a 2d seq
+       (throw (IllegalArgumentException. "Unsupported input-field type!"))    
  ))
  
 (defn output
@@ -65,8 +67,8 @@
 ----------------------------------------------------------------------------------------
 :direct  :range-mapped  :z-axis   :multiplicative  :nominal 
 ----------------------------------------------------------------------------------------" 
-[input-field & {:keys [forNetwork? one-of-n? type top bottom]
-               :or {type :range-mapped forNetwork? true one-of-n? false bottom -1.0 top 1.0}}] 
+[input-field & {:keys [one-of-n? type top bottom]
+               :or {type :range-mapped one-of-n? false bottom -1.0 top 1.0}}] 
 (case type  
        :direct        (OutputFieldDirect. input-field) ;will simply pass the input value to the output (not very useful)
        ;maps a seq of numbers to a specific range. For Support Vector Machines and many neural networks based on the 
@@ -83,18 +85,18 @@
                             (.addItem input-field))
                       (doto (OutputEquilateral. top bottom) ;better alternative for nominal values usually
                             (.addItem input-field)))
-      ;:else (throw (IllegalArgumentException. "Unsupported output-field type!")) 
+      (throw (IllegalArgumentException. "Unsupported output-field type!")) 
 ))
 
 
-(definline make-data-normalization [storage] 
+(definline data-normalization [storage] 
 `(doto (DataNormalization.) 
    (.setTarget ~storage)))
 
 (defn normalize 
 "Function for producing normalised values. It is normally being used from within the main 'prepare' function."
 [ins outs max min storage] ;ins must be a seq
-(let [norm  (make-data-normalization storage)]
+(let [norm  (data-normalization storage)]
 (mapv #(do (.addInputField norm %1) (.addOutputField norm %2)) ins outs)
 (.process norm)
 (if (every? #(= InputFieldCSV (class %)) ins) 
@@ -103,42 +105,38 @@
     
 
 (defn prepare
-"Adjusts data to be within a certain range. Defaults to (-1 ... 1). This function does all the setting up needed for normalization. First 3 arguments are mandatory. There 4 optional ones as well. 
+"Adjusts data to be within a certain range. Defaults to (-1 ... 1). This function does all the setting up needed for normalization. 
+ First 3 arguments are mandatory. There rest 5 are optional. 
 ----------------------------------------------------------------------------------------------------
- :how    (mandatory -- the normalization technique to use; there are really only 3) 
- Options include:
-              :array-range (This is the quickest way to normalize a 1d array within a range)  
-              :csv-range   (This is what you use for csv files.))
-              :range  (This involves creating proper input/output fields for columns of either a 1d or a 2d structure))
-              :z-axis (This is good for  consistent vector lengths, often for SOMs. Usually a better choice than multiplicative)
-              :multiplicative 
  inputs  (mandatory -- the InputFields),
- outputs (mandatory -- the OutputFields), 
- :forNetwork? (optional -- are we normalizing for network input?)  *defaults to true
+ outputs (mandatory -- the OutputFields),
+ storage (mandatory -- where to store the normalised values) 
+ :how    (optional -- the normalization technique to use; if you provided input/output fields and storage there is no need to use this) 
+ Options include:
+       :array-range (This is the quickest way to normalize a 1d array within a range without involving input/output fields)  
+       :csv-range   (This is what you use for csv files. Use the input file name as 'inputs' and the output file name for 'storage'. 'outputs' is ignored...))
  :top  (optional -- the max value) :default  1
  :bottom    (optional -- the min value) :default -1 
- :has-headers? (optional -- csv file includes headers?) *defaults to true
- :source-file (optional -- where to read from)
- :target-file (optional -- where to write to)." 
-[inputs outputs storage & {:keys [how forNetwork? has-headers? top bottom raw-seq ] 
-                           :or {forNetwork? true has-headers? false raw-seq [] top 1.0 bottom -1.0}}] ;;defaults 
+ :raw-seq   (optional -- the raw-seq to normalise in case you're doing :array-range normalisation) *defaults to an empty vector
+ :has-headers? (optional -- csv input file includes headers?) *defaults to false." 
+[inputs outputs storage & {:keys [how has-headers? top bottom raw-seq] 
+                           :or {has-headers? false raw-seq [] top 1.0 bottom -1.0}}] ;;defaults 
 (case how  
        :array-range  (let [norm (NormalizeArray.)] ;convenient array normalization
                        (do (.setNormalizedHigh norm top)
                            (.setNormalizedLow norm  bottom)  
                            (.process norm  (double-array raw-seq))))
        :csv-range    ;convenient csv file normalization
-                       (let [input  (java.io.File. inputs) ;in this case inputs/storage should be strings
+                       (let [input  (java.io.File. inputs) ;in this case inputs & storage should be strings (file-names)
                              output (java.io.File. storage)
                              analyst (EncogAnalyst.) 
                              wizard (AnalystWizard. analyst)
                              norm (AnalystNormalizeCSV.)]
-                        (do (. wizard wizard input true AnalystFileFormat/DECPNT_COMMA)
-                            (.analyze norm  input has-headers? CSVFormat/ENGLISH analyst)
-                            ;(. norm setOutputFormat CSVFormat/ENGLISH)
-                            (.setProduceOutputHeaders norm  has-headers?)
-                            (.normalize  norm normalize output)))  
-                            
+                         (. wizard wizard input true AnalystFileFormat/DECPNT_COMMA)
+                         (.analyze norm  input has-headers? CSVFormat/ENGLISH analyst)
+                         ;(. norm setOutputFormat CSVFormat/ENGLISH)
+                         (.setProduceOutputHeaders norm  has-headers?)
+                         (.normalize  norm normalize output))                            
   (normalize inputs outputs top bottom storage)))                       
 
 
