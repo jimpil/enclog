@@ -169,9 +169,9 @@
 
 (defmacro implement-CalculateScore 
 "Consumer convenience for implementing the CalculateScore interface which is needed for genetic and simulated annealing training."
-[minimize? & body]
+[minimize? eval-fn]
 `(reify CalculateScore 
-  (^double calculateScore  [this ^MLRegression n#] ~@body) 
+  (^double calculateScore  [this ^MLRegression n#] (~eval-fn n#)) 
   (^boolean shouldMinimize [this] ~minimize?)))
   
 (defmacro add-strategies [^MLTrain method & strategies]
