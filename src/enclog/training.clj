@@ -51,10 +51,10 @@
  Returns the actual MLData object or a closure that needs to be called again with extra arguments." 
 [of-type & data]
 (case of-type
-   :basic         (if (number? data) (BasicMLData. (count (first data))) ;initialised empty  
-                                     (BasicMLData. (double-array (first data)))) ;initialised with train data
-   :basic-complex nil ;;TODO
-   :basic-dataset (if (nil? data)  (BasicMLDataSet.) ;initialised empty 
+   :basic         (if (number? (first data)) (BasicMLData. (first data)) ;initialised empty  
+                                             (BasicMLData. (double-array (first data)))) ;initialised with train data
+   :basic-complex (throw) ;;TODO
+   :basic-dataset (if (empty? data)  (BasicMLDataSet.) ;initialised empty 
                   (BasicMLDataSet. (into-array (map double-array (first data))) 
                                    (if (nil? (second data)) nil ;there is no ideal data 
                                        (into-array (map double-array (second data))))))
@@ -66,7 +66,7 @@
                            
                                                           
    ;:folded (FoldedDataSet.)
-;:else (throw (IllegalArgumentException. "Unsupported data model!"))
+(throw (IllegalArgumentException. "Unsupported data model!"))
 ))
 
 (defn neighborhood-F 
@@ -80,6 +80,7 @@
        :bubble (fn [radius] (NeighborhoodBubble. (int radius)))
        :rbf    (fn [^RBFEnum t & dims] (NeighborhoodRBF. (int-array dims) t))
        :rbf1D  (fn [^RBFEnum r] (NeighborhoodRBF1D. r))
+(throw (IllegalArgumentException. "Unsupported neighborhood type!"))
 ))
 
 ;;example-usage: 
@@ -98,7 +99,9 @@
         :gaussian     (RBFEnum/Gaussian)
         :multiquadric (RBFEnum/Multiquadric)
         :inverse-multiquadric  (RBFEnum/InverseMultiquadric)
-        :mexican-hat  (RBFEnum/MexicanHat)))
+        :mexican-hat  (RBFEnum/MexicanHat)
+ (throw (IllegalArgumentException. "Unsupported rbf-enum!"))
+ ))
 
 (defn randomizer 
 "Constructs a Randomizer object. Options [with respective args] include:
@@ -128,7 +131,8 @@
     :fan-in     (if (:symmetric? opts) (FanInRandomizer. (- (:boundary opts)) (:boundary opts) (boolean (:sqr-root? opts)))
                                        (FanInRandomizer. (:min opts) (:max opts) (boolean (:sqr-root? opts))))
     :gaussian   (GaussianRandomizer. (:mean opts) (:st-deviation opts))
-    :nguyen-widrow  (NguyenWidrowRandomizer.) ;the most performant randomizer for networks  
+    :nguyen-widrow  (NguyenWidrowRandomizer.) ;the most performant randomizer for networks
+(throw (IllegalArgumentException. "Unsupported randomization technique!"))  
 ))
 
 (defn randomize
@@ -137,7 +141,7 @@
  MLMethod (network) -- double -- double[] -- double[][] -- Matrix -- clj-vector (1d / 2d).
  Note: Not all randomizers implement randomize() (only FanIn)." 
 [^Randomizer randomizer data]
-(if-not (vector? data) (do (.randomize randomizer data) data) ;;not a vector (presumably an array)
+(if-not (vector? data) (do (.randomize randomizer data) data) ;;not a vector (presumably something encog already knows about)
 (let [res2 (when (vector? (first data)) (into-array (map #(into-array Double/TYPE %) data))) ;;2d vector
       res1 (when-not res2 (double-array data))] ;;1d vector
   (cond res2 (do (.randomize randomizer res2) (vec (map vec res2))) ;got 2d vector return 2d-vectos
@@ -163,22 +167,22 @@
    (apply sorted-map-by >)        
    (merge {:number-of-clusters k})))) 
    
-(defn bag-of-words [k]
-(BagOfWords. k))    
+(definline bag-of-words [k]
+`(BagOfWords. ~k))    
                              
 
-(defmacro implement-CalculateScore 
+(definline implement-CalculateScore 
 "Consumer convenience for implementing the CalculateScore interface which is needed for genetic and simulated annealing training."
 [minimize? eval-fn]
 `(reify CalculateScore 
   (^double calculateScore  [this ^MLRegression n#] (~eval-fn n#)) 
   (^boolean shouldMinimize [this] ~minimize?)))
   
-(defmacro add-strategies [^MLTrain method & strategies]
+(defn add-strategies [^MLTrain method & strategies]
 "Consumer convenience for adding strategies to a training method. Returns the modified training method."
-`(do
-  (doseq [s# ~@strategies]
-  (.addStrategy ~method s#)) ~method))  
+(doseq [s strategies]
+  (.addStrategy method s)) 
+method)  
 
 (defn trainer
 "Constructs a training-method (MLTrain) object  given a method. Options [with respective args] inlude:
@@ -216,7 +220,7 @@
        :nelder-mead    (NelderMeadTraining. (:network opts)  (if-let [st (:step opts)] st 100))
        :svm            (SVMTrain. (:network opts) (:training-set opts))
        :svd            (SVDTraining. (:network opts) (:training-set opts))
-       :basic-som      (BasicTrainSOM. (:network opts) (:training-set opts) (:learning-rate opts) (:neighborhood-fn opts))
+       :basic-som      (BasicTrainSOM. (:network opts) (:learning-rate opts) (:training-set opts) (:neighborhood-fn opts))
        :neat       (if-not (:population-object opts)
        ;;neat creates a population so we don't really need an actual network. We can skip the 'make-network' bit.
        ;;population can be an integer or a NEATPopulation object 
@@ -230,51 +234,37 @@
 
 ;;usage: ((make-trainer :resilient-prop) (make-network blah-blah) some-data-set)
 ;;       ((make-trainer :genetic) (make-network blah-blah) some-data-set)
-
-
-(defmacro genericTrainer [method & args]
-`(fn [& details#] 
-   (new ~method (first ~@args) ;the network
-                (second ~@args);the training set 
-                (rest (rest ~@args)))))
                 
                                
 (defn train 
 "Does the actual training. This is a potentially lengthy and costly process. 
- This is an overloaded fucntion. It is up to you whether you want to provide limits for error-tolerance, 
+ This is an overloaded fucntion. It is up to you whether you want to provide limits for error-tolerance (pass Double/NEGATIVE_INFINITY if you don't care), 
  iteration-number or both. Regardless of the limitations however, this  function will return the best network so far
  as a result of training."
 ([^MLTrain method error-tolerance limit strategies] ;;eg: (new RequiredImprovementStrategy 5) 
-(when (seq strategies) (dotimes [i (count strategies)] 
-                       (.addStrategy method (get strategies i))))
-     (loop [epoch (int 1)]
-       (if (< limit epoch) (.getMethod method) ;failed to converge - return the best network
+ (apply add-strategies method strategies) 
+    (loop [epoch (int 1)]
+      (if (< limit epoch) (.getMethod method) ;failed to converge - return the best network
        (do (.iteration method)
            (println "Iteration #" (Format/formatInteger epoch) 
                     "Error:" (Format/formatPercent (.getError method)) 
                     "Target-Error:" (Format/formatPercent error-tolerance))
-       (if-not (> (.getError method) error-tolerance) (.getMethod method) ;;succeeded to converge -return the best network 
+       (if (< (.getError method) error-tolerance) (.getMethod method) ;;succeeded to converge -return the best network 
        (recur (inc epoch)))))))
-
 ([^MLTrain method error-tolerance strategies] 
-(when (seq strategies) (dotimes [i (count strategies)] 
-                       (.addStrategy method (get strategies i))))
-(do (EncogUtility/trainToError method error-tolerance)
-                                (.getMethod method)))
-
+  (apply add-strategies method strategies)
+  (EncogUtility/trainToError method error-tolerance)
+  (.getMethod method))
 ([^MLTrain method strategies] ;;need only one iteration - SVMs or Nelder-Mead training for example
- (when (seq strategies) (dotimes [i (count strategies)] 
-                        (.addStrategy method (get strategies i))))
-     (do (.iteration method) 
-         (println "Error:" (.getError method)) 
-         (.getMethod method))))
+(apply add-strategies method strategies)
+  (.iteration method) 
+  (println "Error:" (.getError method)) 
+  (.getMethod method)))
 
-(defmacro evaluate 
+(definline evaluate 
 "This expands to EncogUtility.evaluate(n,d). Expects a network and a dataset and prints the evaluation." 
 [n ds]
  `(EncogUtility/evaluate ~n ~ds)) 
-
-
 
 
  
