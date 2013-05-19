@@ -39,9 +39,12 @@
 (definline directory-persistence 
 "Constructs and returns an EncogDirectoryPersistence object which handles Encog persistence for an entire directory.
  The object provides utilities to operate on a collection of networks or objects that have been persisted under the same path.
- We 'll refer to these as 'directory-collections'."
+ We 'll refer to these as 'directory-collections'. If the path you specified doesn't exist, it will be created."
 [^String dir]
-  `(EncogDirectoryPersistence. (File. ~dir)))
+`(let [target-dir# (File. ~dir) 
+       p-dir# (EncogDirectoryPersistence. target-dir#)] 
+  (if (.isDirectory target-dir#) p-dir#
+    (do (.mkdirs target-dir#)    p-dir#)))) 
 
 (defn eg-load
 "Load a network/object called file-name, either from a directory-collection, or an arbitrary location on the file-system."
@@ -52,9 +55,9 @@
 
 (defn eg-persist
 "Write a network/object on disk, either as part of an existing directory-collection, or at an arbitrary location on the file-system."
-([^String file-name network] 
+([network ^String file-name] 
   (EncogDirectoryPersistence/saveObject (File. file-name) network)) 
-([network ^EncogDirectoryPersistence collection ^String name] 
+([network  ^String name ^EncogDirectoryPersistence collection] 
   (. collection saveToDirectory name network)))
 
 (defn eg-type 
