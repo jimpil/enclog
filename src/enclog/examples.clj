@@ -217,9 +217,9 @@ wraps a call to your real fitness-function (like here) seems a good choice."
      (dotimes [i 10] (.iteration trainer)) ;training complete
      (let [d1 (data :basic (first input))
            d2 (data :basic (second input))]
-           (do (println "Pattern 1 winner:" (. network classify d1)) 
-               (println "Pattern 2 winner:" (. network classify d2))  
-           network)) ;returns the trained network at the end    
+            (println "Pattern 1 winner:" (. network classify d1)) 
+            (println "Pattern 2 winner:" (. network classify d2))  
+           network) ;returns the trained network at the end    
 ))            
 
 ;---------------------------------------------------------------------------------------------------------------
@@ -304,8 +304,8 @@ wraps a call to your real fitness-function (like here) seems a good choice."
      
   ;(vec (repeatedly 100 (fn [] (vec (repeatedly 480 #(rand-int 50))))))  ;;100 vectors containing 480 random elements
  
-(defn simple-cluster [& args]
-(apply cluster args)) 
+(defn simple-cluster [data2d k n]
+  (cluster data2d k n)) 
                 
 
 ;---------------------------------------------------------------------------------------------------------------
