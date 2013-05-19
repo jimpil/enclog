@@ -33,7 +33,7 @@
  (target-storage :norm-array [50 0])      ;;50 rows
  (target-storage :norm-array2d [50 20]) ;;50 rows 20 columns
  (target-storage :norm-dataset [50 30]) ;;input-count & ideal-count
- (target-storage :norm-csv :target-file (str 'some-file.csv))  " 
+ (target-storage :norm-csv nil :target-file  \"some-file.csv\")  " 
 [type [size1 size2] & {:keys [target-file]}]
 (case type
        :norm-array     (NormalizationStorageArray1D. (make-array Double/TYPE size1)) ;just rows
@@ -69,8 +69,14 @@
                :or {type :range-mapped forNetwork? true one-of-n? false bottom -1.0 top 1.0}}] 
 (case type  
        :direct        (OutputFieldDirect. input-field) ;will simply pass the input value to the output (not very useful)
+       ;maps a seq of numbers to a specific range. For Support Vector Machines and many neural networks based on the 
+       ;HTAN activation function the input must be in the range of -1 to 1. If you are using a sigmoid activation function
+       ;you should normalize to the range 0 - 1.
        :range-mapped  (OutputFieldRangeMapped. input-field bottom top)
+       ;z-axis should be used when you need a consistent vector length, often for SOMs. Usually a better choice than multiplicative
        :z-axis        (OutputFieldZAxis. (ZAxisGroup.) input-field)
+       ;multiplicative normalisation can be very useful for vector quantization and when you need a consistent vector length. 
+       ;It may also perform better than z-axis when all of the input fields are near 0.
        :multiplicative  (OutputFieldMultiplicative. (MultiplicativeGroup.) input-field)
        :nominal     (if one-of-n?
                       (doto (OutputOneOf. top bottom)       ;simplistic one-of-n method (not very good)
@@ -81,37 +87,25 @@
 ))
 
 
-(defmacro make-data-normalization [storage] 
+(definline make-data-normalization [storage] 
 `(doto (DataNormalization.) 
- (.setTarget ~storage)))
+   (.setTarget ~storage)))
 
-(defn normalize "Function for producing normalised values. It is normally being used from within the main normalize function."
-[how ins outs max min batch? storage] ;ins must be a seq
+(defn normalize 
+"Function for producing normalised values. It is normally being used from within the main 'prepare' function."
+[ins outs max min storage] ;ins must be a seq
 (let [norm  (make-data-normalization storage)]
-(do  (dotimes [i (count ins)] 
-       (.addInputField norm   (try (nth ins i) 
-                              (catch Exception e (.getValue ins i)))) ;in case an InputField came
-       (.addOutputField norm  (nth outs i)))                
-    (.process norm) 
+(mapv #(do (.addInputField norm %1) (.addOutputField norm %2)) ins outs)
+(.process norm)
+(if (every? #(= InputFieldCSV (class %)) ins) 
+        (println "SUCCESS...!");there is nothing to return, at least print something
+    (.getArray storage)) ))
     
-    (if (every? #(= InputFieldCSV (class %)) ins) 
-        (println "SUCCESS...!");there is nothing to return
-    (.getArray storage)))))
-    
- ;(if (every? (= InputFieldCSV (class (first ins))) (println "SUCCESS...!")  ;;Not elegant
- ;(.getArray storage))))) ;returns the normalised array found into the storage target
-  
-   
- ;(do  #_(println (seq (second source) ))
-     ; (. norm addInputField  in)          
-     ; (. norm addOutputField out)
-     ; (. norm process) 
-      ;(.getArray storage)))) ;returns the normalised array found into the storage target
 
 (defn prepare
 "Adjusts data to be within a certain range. Defaults to (-1 ... 1). This function does all the setting up needed for normalization. First 3 arguments are mandatory. There 4 optional ones as well. 
 ----------------------------------------------------------------------------------------------------
- :how    (mandatory -- the normalization technique to use) 
+ :how    (mandatory -- the normalization technique to use; there are really only 3) 
  Options include:
               :array-range (This is the quickest way to normalize a 1d array within a range)  
               :csv-range   (This is what you use for csv files.))
@@ -126,16 +120,16 @@
  :has-headers? (optional -- csv file includes headers?) *defaults to true
  :source-file (optional -- where to read from)
  :target-file (optional -- where to write to)." 
-[how inputs outputs & {:keys [forNetwork? has-headers? top bottom raw-seq source-file target-file] 
-                       :or {forNetwork? true has-headers? false top 1.0 bottom -1.0}}] ;;defaults 
+[inputs outputs storage & {:keys [how forNetwork? has-headers? top bottom raw-seq ] 
+                           :or {forNetwork? true has-headers? false raw-seq [] top 1.0 bottom -1.0}}] ;;defaults 
 (case how  
        :array-range  (let [norm (NormalizeArray.)] ;convenient array normalization
                        (do (.setNormalizedHigh norm top)
                            (.setNormalizedLow norm  bottom)  
                            (.process norm  (double-array raw-seq))))
        :csv-range    ;convenient csv file normalization
-                       (let [input  (java.io.File. source-file)
-                             output (java.io.File. target-file)
+                       (let [input  (java.io.File. inputs) ;in this case inputs/storage should be strings
+                             output (java.io.File. storage)
                              analyst (EncogAnalyst.) 
                              wizard (AnalystWizard. analyst)
                              norm (AnalystNormalizeCSV.)]
@@ -143,18 +137,8 @@
                             (.analyze norm  input has-headers? CSVFormat/ENGLISH analyst)
                             ;(. norm setOutputFormat CSVFormat/ENGLISH)
                             (.setProduceOutputHeaders norm  has-headers?)
-                            (.normalize  norm normalize output)))                                  
-       ;maps a seq of numbers to a specific range. For Support Vector Machines and many neural networks based on the 
-       ;HTAN activation function the input must be in the range of -1 to 1. If you are using a sigmoid activation function
-       ;you should normalize to the range 0 - 1.
-       :range          (partial normalize :range-mapped inputs outputs top bottom)   
-       ;z-axis should be used when you need a consistent vector length, often for SOMs. Usually a better choice than multiplicative
-       :z-axis         (partial normalize :z-axis inputs outputs top bottom)
-       ;multiplicative normalisation can be very useful for vector quantization and when you need a consistent vector length. 
-       ;It may also perform better than z-axis when all of the input fields are near 0.
-       :multiplicative (partial normalize :multiplicative inputs outputs top bottom)
-       ;reciprocal normalization is always normalizing to a number in the range between 0 and 1. Very simple technique.
-       :reciprocal  nil ;TODO 
-))                       
+                            (.normalize  norm normalize output)))  
+                            
+  (normalize inputs outputs top bottom storage)))                       
 
 
