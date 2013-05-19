@@ -77,16 +77,15 @@
 ; this example requires that you have LanderSimulation.class NeuralPilot.class in your classpath.
 ; both of them are in the jar.
 
-(defmacro pilot-score 
-"The fitness function for the GA. You will usually pass your own to the GA. A macro that simply 
+(definline pilot-score 
+"The fitness function for the GA. You will usually pass your own to the GA. A fn that simply 
 wraps a call to your real fitness-function (like here) seems a good choice." 
-[net] 
-`(.scorePilot (NeuralPilot. ~net false)))
+[net verbose?] 
+`(.scorePilot (NeuralPilot. ~net ~verbose?)))
 
 (defn try-it [best-evolved] 
-(println"\nHow the winning network landed:")
-(let [evolved-pilot (NeuralPilot. best-evolved true)]
-(println (.scorePilot evolved-pilot))))
+(println"\nHow the winning network landed:\n")
+(pilot-score best-evolved true))
 
 
 (defn lunar-lander 
@@ -99,7 +98,7 @@ wraps a call to your real fitness-function (like here) seems a good choice."
                         :hidden [50]) ;a single hidden layer of 50 neurons
       trainer   (trainer :genetic :network net 
                                   :randomizer (randomizer :nguyen-widrow) 
-                                  :fitness-fn (pilot-score net) 
+                                  :fitness-fn #(pilot-score % false)
                                   :minimize? false  
                                   :population-size popu 
                                   :mutation-percent 0.1  
@@ -170,7 +169,7 @@ wraps a call to your real fitness-function (like here) seems a good choice."
       window-size 30 ;input layer count
       train-end 259
       evaluation-end (dec (count spots))
-      normalizedSunspots (prepare :array-range nil nil :raw-seq spots :top 0.9 :bottom 0.1);using quick method
+      normalizedSunspots (prepare nil nil nil :how :array-range :raw-seq spots :top 0.9 :bottom 0.1);using quick method
       closedLoopSunspots (EngineArray/arrayCopy normalizedSunspots)
       train-set         ((data :temporal-window normalizedSunspots) window-size 1) 
       net  (network (neural-pattern :svm) 
@@ -236,35 +235,37 @@ wraps a call to your real fitness-function (like here) seems a good choice."
       input-field   (input source :forNetwork? false :type :array-1d)  
       output-field  (output input-field  :type :range-mapped :bottom 0.1 :top 0.9)
       target        (target-storage :norm-array [size nil])
-      ready         ((prepare :range [input-field] ;needs to be seqable
-                                     [output-field] ;same here 
-                                     :top    0.9 
-                                     :bottom 0.1) false target)]                        
+      ready         (prepare  [input-field] ;needs to be seqable
+                              [output-field] ;same here
+                              target 
+                              :top    0.9 
+                              :bottom 0.1)]                        
 (println   (seq ready) "\n---------- THESE 2 SHOULD BE IDENTICAL! ----------------\n" )
 
 ;the version below skips initialising input/output fields and storage targets...
 ;Uses arrays directly but only supports 1 dimension.
-(seq (prepare :array-range nil nil ;inputs & outputs are nil
-                :raw-seq source 
-                :forNetwork? false
-                :top 0.9
-                :bottom 0.1))
+(seq (prepare nil nil nil :how :array-range  ;inputs & outputs are nil
+                          :raw-seq source 
+                          :forNetwork? false
+                          :top 0.9
+                          :bottom 0.1))
 ))
 
 
 
-(defn norm-ex-2d [] ;;example with 2d array
+(defn norm-ex-2d [] ;;example with 2d array and z-axis technique
 (let [source dummy2
       column-length (count (first source)) ;5
       row-length  (count source) ;3 
       input-fields-2d  (for [i (range column-length)]
                          (input source :forNetwork? false :type :array-2d :index2 i))        
-      output-fields-2d   (for [inpf input-fields-2d] (output inpf :type :range-mapped :bottom 0.1 :top 0.9))
+      output-fields-2d   (for [inpf input-fields-2d] (output inpf :type :z-axis :bottom 0.1 :top 0.9))
       target           (target-storage :norm-array2d [row-length column-length])
-      ready           ((prepare :range input-fields-2d ;already seqables
-                                       output-fields-2d  
-                                      :top 0.9 
-                                      :bottom  0.1) false target)]                 
+      ready           (prepare input-fields-2d ;already seqables
+                                output-fields-2d
+                                target  
+                                :top 0.9 
+                                :bottom  0.1)]                 
 
                   
 (println  (map seq (seq ready)) "\n--------------------------------\n" )
@@ -274,9 +275,8 @@ wraps a call to your real fitness-function (like here) seems a good choice."
 (defn norm-csv [] ;using EncogAnalyst
 (let [source-filename "test2.txt"
       target-filename "generated2.txt"]
- (do ((prepare :csv-range nil nil) source-filename 
-                                   target-filename true) 
-      (println "DONE!"))))
+ (prepare source-filename nil target-filename :how :csv-range :has-headers? true) 
+ (println "DONE!")))
  
  
 (defn norm-csv2 []  ;using input/output fields and storage
@@ -291,10 +291,11 @@ wraps a call to your real fitness-function (like here) seems a good choice."
                                       :column-offset i)))
       output-fields (for [i input-fields] (output i :type :range-mapped :bottom min :top max))
       storage (target-storage :norm-csv :target-file target)
-      ready ((prepare :range input-fields 
-                             output-fields
-                             :top max
-                             :bottom min) false storage)] 
+      ready (prepare  input-fields 
+                      output-fields
+                      storage
+                      :top max
+                      :bottom min)] 
     ))
 
 
