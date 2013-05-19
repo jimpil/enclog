@@ -271,7 +271,8 @@
 
 (defmacro evaluate 
 "This expands to EncogUtility.evaluate(n,d). Expects a network and a dataset and prints the evaluation." 
-[n ds] `(EncogUtility/evaluate ~n ~ds)) 
+[n ds]
+ `(EncogUtility/evaluate ~n ~ds)) 
 
 
 
