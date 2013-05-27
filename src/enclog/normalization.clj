@@ -67,7 +67,7 @@
 ----------------------------------------------------------------------------------------
 :direct  :range-mapped  :z-axis   :multiplicative  :nominal 
 ----------------------------------------------------------------------------------------" 
-[input-field & {:keys [one-of-n? type top bottom]
+[input-field & {:keys [one-of-n? type top bottom z-group]
                :or {type :range-mapped one-of-n? false bottom -1.0 top 1.0}}] 
 (case type  
        :direct        (OutputFieldDirect. input-field) ;will simply pass the input value to the output (not very useful)
@@ -76,7 +76,7 @@
        ;you should normalize to the range 0 - 1.
        :range-mapped  (OutputFieldRangeMapped. input-field bottom top)
        ;z-axis should be used when you need a consistent vector length, often for SOMs. Usually a better choice than multiplicative
-       :z-axis        (OutputFieldZAxis. (ZAxisGroup.) input-field)
+       :z-axis        (OutputFieldZAxis. z-group input-field) ;;remember to add a synthetic field in your z-axis group
        ;multiplicative normalisation can be very useful for vector quantization and when you need a consistent vector length. 
        ;It may also perform better than z-axis when all of the input fields are near 0.
        :multiplicative  (OutputFieldMultiplicative. (MultiplicativeGroup.) input-field)
@@ -97,11 +97,11 @@
 "Function for producing normalised values. It is normally being used from within the main 'prepare' function."
 [ins outs max min storage] ;ins must be a seq
 (let [norm  (data-normalization storage)]
-(mapv #(do (.addInputField norm %1) (.addOutputField norm %2)) ins outs)
-(.process norm)
+  (mapv #(do (.addInputField norm %1) (.addOutputField norm %2)) ins outs)
+  (.process norm)
 (if (every? #(= InputFieldCSV (class %)) ins) 
-        (println "SUCCESS...!");there is nothing to return, at least print something
-    (.getArray storage)) ))
+   (println "SUCCESS...!");there is nothing to return, at least print something
+   (.getArray storage)) ))
     
 
 (defn prepare
