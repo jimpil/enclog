@@ -19,8 +19,9 @@
        (org.encog.neural.neat NEATPopulation)
        (org.encog.neural.rbf RBFNetwork)
        (org.encog.neural.som SOM) 
+       (org.encog.neural.data.basic BasicNeuralDataPair)
        (org.encog.neural.rbf.training SVDTraining)
-       (org.encog.ml.data.basic BasicMLData BasicMLDataSet)
+       (org.encog.ml.data.basic BasicMLData BasicMLDataSet BasicMLDataPair BasicMLSequenceSet)
        (org.encog.ml.data MLDataSet)
        (org.encog.ml.data.temporal TemporalMLDataSet)
        (org.encog.ml.data.folded FoldedDataSet)
@@ -46,26 +47,28 @@
 "Constructs a MLData object given some data which can be nested. Options include:
  ---------------------------------------------------------------------------------------
  :basic   :basic-dataset  :temporal-window [window-size prediction-size]  
- :basic-complex (not wrapped)  :folded (not wrapped) 
+ :basic-complex (not wrapped)  :folded :basic-pair :neural-pair :sequence-set
  ---------------------------------------------------------------------------------------
  Returns the actual MLData object or a closure that needs to be called again with extra arguments." 
 [of-type & data]
 (case of-type
-   :basic         (if (number? (first data)) (BasicMLData. (first data)) ;initialised empty  
-                                             (BasicMLData. (double-array (first data)))) ;initialised with train data
-   :basic-complex (throw) ;;TODO
+   :basic   (if (number? (first data)) (BasicMLData. (first data)) ;initialised empty  
+                                       (BasicMLData. (double-array (first data)))) ;initialised with train data
+   :basic-complex (throw (IllegalArgumentException. "Complex dataset isnot suported at the moment. Consider using encog directly...")) ;;TODO
    :basic-dataset (if (empty? data)  (BasicMLDataSet.) ;initialised empty 
                   (BasicMLDataSet. (into-array (map double-array (first data))) 
                                    (if (nil? (second data)) nil ;there is no ideal data 
                                        (into-array (map double-array (second data))))))
-   ;:temporal-dataset (TemporalMLDataSet. ) 
-   :temporal-window (fn [window-size prediction-size]
-                           (let [twa (TemporalWindowArray. window-size prediction-size)]
-                           (do (.analyze twa (doubles (first data))) 
-                               (.process twa (doubles (first data)))))) ;returns array of doubles
-                           
-                                                          
-   ;:folded (FoldedDataSet.)
+   :temporal-dataset (TemporalMLDataSet. (-> data first int) (-> data second int)) ;;should be numbers
+   :temporal-window  (fn [window-size prediction-size]
+                       (let [twa (TemporalWindowArray. window-size prediction-size)]
+                         (do (.analyze twa (doubles (first data))) 
+                             (.process twa (doubles (first data)))))) ;returns array of doubles
+   ;:sequence-set expects an entire dataset. So first call 'data' to construct your dataset and then call 'data' again asking for a sequence-set/folded view of it                         
+   :sequence-set  (BasicMLSequenceSet. (first data)) 
+   :basic-pair  (let [[input ideal & more] data] (if (nil? ideal) (BasicMLDataPair. input) (BasicMLDataPair. input ideal)))
+   :neural-pair (let [[input ideal & more] data] (if (nil? ideal) (BasicNeuralDataPair. input) (BasicNeuralDataPair. input ideal)))                                                     
+   :folded (FoldedDataSet. (first data)) ;;expects an underlying dataset e.g (->> (data :basic [1 2 3 4 5]) (data :folded))
 (throw (IllegalArgumentException. "Unsupported data model!"))
 ))
 
@@ -141,19 +144,17 @@
  MLMethod (network) -- double -- double[] -- double[][] -- Matrix -- clj-vector (1d / 2d).
  Note: Not all randomizers implement randomize() (only FanIn)." 
 [^Randomizer randomizer data]
-(if-not (vector? data) (do (.randomize randomizer data) data) ;;not a vector (presumably something encog already knows about)
-(let [res2 (when (vector? (first data)) (into-array (map #(into-array Double/TYPE %) data))) ;;2d vector
+(if-not (vector? data) (do (.randomize randomizer data) data) ;;not a vector (presumably something encog already knows how to handle)
+(let [res2 (when (vector? (first data)) (into-array (mapv #(into-array Double/TYPE %) data))) ;;2d vector
       res1 (when-not res2 (double-array data))] ;;1d vector
   (cond res2 (do (.randomize randomizer res2) (vec (map vec res2))) ;got 2d vector return 2d-vectos
         res1 (do (.randomize randomizer res1) (vec res1)) ;got 1d-vector return 1d-vector
-  :else "Nothing happened!!!")))) 
-  
+  :else (println "NOTHING HAPPENED!!!\n"))))) 
   
   
 (defn cluster 
-"Simple k-means clustering. Expects raw-data (2d vector), k (the number of clusters to use) and number of iterations.
- Returns a hash-map where keys are numbers from 1 to however many clusters we got back and 
- values are vectors holding the clustered BasicMLData objects." 
+"Simple k-means clustering. Expects raw-data (2d seq), k (the number of clusters to use) and number of iterations.
+ Returns a map where keys are numbers from 1 to n clusters we got back and  values are vectors holding the clustered BasicMLData objects." 
 [raw-data k iterations]
 (let [wrapped (map #(data :basic %) raw-data) ;wrap each inner vector into a BasicMLData object
       dataset (let [ds (data :basic-dataset)] 
@@ -181,8 +182,7 @@
 (defn add-strategies [^MLTrain method & strategies]
 "Consumer convenience for adding strategies to a training method. Returns the modified training method."
 (doseq [s strategies]
-  (.addStrategy method s)) 
-method)  
+  (.addStrategy method s)) method)  
 
 (defn trainer
 "Constructs a training-method (MLTrain) object  given a method. Options [with respective args] inlude:
@@ -228,12 +228,11 @@ method)
                                          (:input opts) (:output opts) (:population-size opts))
                           (NEATTraining. (implement-CalculateScore (:minimize? opts) (:fitness-fn opts)) 
                                          (:population-object opts))) 
- ;:else (throw (IllegalArgumentException. "Unsupported training method!"))     
+ (throw (IllegalArgumentException. "Unsupported training method!"))     
 ))
 
 
-;;usage: ((make-trainer :resilient-prop) (make-network blah-blah) some-data-set)
-;;       ((make-trainer :genetic) (make-network blah-blah) some-data-set)
+;;usage: (train (trainer :resilient-prop :network (network blah-blah) some-data-set)  0.001 500 [])
                 
                                
 (defn train 
