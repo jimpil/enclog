@@ -11,7 +11,7 @@
                                        InputFieldArray1D
                                        InputFieldArray2D
                                        InputField)
-       (org.encog.util.normalize.output OutputFieldRangeMapped)
+       (org.encog.util.normalize.output OutputFieldRangeMapped )
        (org.encog.util.normalize.output.multiplicative OutputFieldMultiplicative 
                                                        MultiplicativeGroup)
        (org.encog.util.normalize.output.zaxis OutputFieldZAxis ZAxisGroup)
@@ -20,7 +20,8 @@
        (org.encog.app.analyst.wizard AnalystWizard)
        (org.encog.app.analyst.csv.normalize AnalystNormalizeCSV)                                 
        (org.encog.util.csv CSVFormat )                                
-       (org.encog.util.normalize.output.nominal OutputEquilateral OutputOneOf)                               
+       (org.encog.util.normalize.output.nominal OutputEquilateral OutputOneOf)
+       (org.encog.util.normalize.output.mapped OutputFieldEncode)                                
        (org.encog.util.arrayutil NormalizeArray)
 ))
 ;--------------------------------------------   
@@ -67,7 +68,7 @@
 ----------------------------------------------------------------------------------------
 :direct  :range-mapped  :z-axis   :multiplicative  :nominal 
 ----------------------------------------------------------------------------------------" 
-[input-field & {:keys [one-of-n? type top bottom z-group]
+[input-field & {:keys [one-of-n? type top bottom group]
                :or {type :range-mapped one-of-n? false bottom -1.0 top 1.0}}] 
 (case type  
        :direct        (OutputFieldDirect. input-field) ;will simply pass the input value to the output (not very useful)
@@ -76,10 +77,11 @@
        ;you should normalize to the range 0 - 1.
        :range-mapped  (OutputFieldRangeMapped. input-field bottom top)
        ;z-axis should be used when you need a consistent vector length, often for SOMs. Usually a better choice than multiplicative
-       :z-axis        (OutputFieldZAxis. z-group input-field) ;;remember to add a synthetic field in your z-axis group
+       :z-axis        (OutputFieldZAxis. group input-field) ;;remember to add a synthetic field in your z-axis group
        ;multiplicative normalisation can be very useful for vector quantization and when you need a consistent vector length. 
        ;It may also perform better than z-axis when all of the input fields are near 0.
-       :multiplicative  (OutputFieldMultiplicative. (MultiplicativeGroup.) input-field)
+       :multiplicative  (OutputFieldMultiplicative. group input-field)
+       :encode          (OutputFieldEncode. input-field)
        :nominal     (if one-of-n?
                       (doto (OutputOneOf. top bottom)       ;simplistic one-of-n method (not very good)
                             (.addItem input-field))
