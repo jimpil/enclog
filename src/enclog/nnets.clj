@@ -1,6 +1,6 @@
 (ns enclog.nnets
 (:import 
-[org.encog.neural.pattern 
+[org.encog.neural.pattern NeuralNetworkPattern 
        FeedForwardPattern ADALINEPattern ART1Pattern BAMPattern
        BoltzmannPattern CPNPattern ElmanPattern HopfieldPattern PatternError
        JordanPattern SOMPattern PNNPattern SVMPattern RadialBasisPattern]
@@ -12,7 +12,7 @@
        ActivationCompetitive ActivationElliott ActivationElliottSymmetric ActivationSteepenedSigmoid]     
 [org.encog.ml.bayesian BayesianNetwork BayesianEvent]    
    ))
-
+(set! *warn-on-reflection* true)
 
  (defn neural-pattern  
  "Constructs a neural-pattern from which we can generate 
@@ -131,7 +131,7 @@ Returns the complete neural-network object with randomized weights."
 (fn [pattern & layers] (class pattern)));;dispatch-fn only cares about the class of the neural-pattern
 
 (defmethod network FeedForwardPattern
-[pattern & {:as layers}] 
+[^NeuralNetworkPattern pattern & {:as layers}] 
     (do 
        (.setInputNeurons pattern  (:input layers))
        (.setOutputNeurons pattern (:output layers))
@@ -141,7 +141,7 @@ Returns the complete neural-network object with randomized weights."
 (.generate pattern)))  ;;finally, return the complete network object
  
 (defmethod network ADALINEPattern ;no hidden layers - only ActivationLinear
-[pattern & {:as layers}] ;;ignoring activation 
+[^NeuralNetworkPattern pattern & {:as layers}] ;;ignoring activation 
  (->  (doto pattern  
          (.setInputNeurons  (:input layers))   
          (.setOutputNeurons (:output layers)))
@@ -149,27 +149,27 @@ Returns the complete neural-network object with randomized weights."
 
 
 (defmethod network ART1Pattern ;;no hidden layers - only ActivationLinear
-[pattern & {:as layers}] ;;ignoring activation 
+[^NeuralNetworkPattern pattern & {:as layers}] ;;ignoring activation 
   (-> (doto pattern  
          (.setInputNeurons  (:input layers))
          (.setOutputNeurons (:output layers)))
   .generate))
 
 (defmethod network BAMPattern ;no hidden layers - only ActivationBiPolar
-[pattern & {:as layers}] ;;ignoring layers and activation 
+[^NeuralNetworkPattern pattern & {:as layers}] ;;ignoring layers and activation 
  (-> (doto pattern  
          (.setF1Neurons (:input layers))
          (.setF2Neurons (:output layers)))
    .generate))
  
 (defmethod network BoltzmannPattern ;;no hidden layers - only ActivationBipolar
-[pattern _ & {:as layers}] ;;ignoring activation 
+[^NeuralNetworkPattern pattern _ & {:as layers}] ;;ignoring activation 
  (-> (doto pattern
       (.setInputNeurons (:input layers)))
   .generate))
  
 (defmethod network CPNPattern ;;one hidden layer - only ActivationBipolar + Competitive
-[pattern & {:as layers}] ;;ignoring activation 
+[^NeuralNetworkPattern pattern & {:as layers}] ;;ignoring activation 
  (-> (doto pattern  
          (.setInputNeurons  (:input layers))
          (.setInstarCount   (get (:hidden layers) 0))
@@ -177,7 +177,7 @@ Returns the complete neural-network object with randomized weights."
   .generate))
  
 (defmethod network ElmanPattern;;one hidden layer only - settable activation
-[pattern & {:as layers}] 
+[^NeuralNetworkPattern pattern & {:as layers}] 
   (-> (doto pattern  
          (.setInputNeurons  (:input layers))
          (.setOutputNeurons (:output layers))
@@ -187,7 +187,7 @@ Returns the complete neural-network object with randomized weights."
 
 
 (defmethod network HopfieldPattern ;;one hidden layer only - settable activation
-[pattern & {:as layers}] 
+[^NeuralNetworkPattern pattern & {:as layers}] 
  (-> (doto pattern 
          (.setInputNeurons  (:input layers))
          (.setOutputNeurons (:output layers))
@@ -197,7 +197,7 @@ Returns the complete neural-network object with randomized weights."
  
  
 (defmethod network JordanPattern ;;one hidden layer only - settable activation
-[pattern & {:as layers}] 
+[^NeuralNetworkPattern pattern & {:as layers}] 
   (-> (doto pattern 
          (.setInputNeurons (:input layers))
          (.setOutputNeurons (:output layers))
@@ -207,14 +207,14 @@ Returns the complete neural-network object with randomized weights."
 
 
 (defmethod network SOMPattern ;non settable activation - no hidden layers
-[pattern & {:as layers}] ;;ignoring activation
+[^NeuralNetworkPattern pattern & {:as layers}] ;;ignoring activation
   (-> (doto pattern  
          (.setInputNeurons  (:input layers))
          (.setOutputNeurons (:output layers)))
    .generate))
  
 (defmethod network RadialBasisPattern ;usually has one hidden layer - non settable activation
-[pattern & {:as layers}] ;;ignoring activation
+[^NeuralNetworkPattern pattern & {:as layers}] ;;ignoring activation
   (-> (doto pattern  
          (.setInputNeurons  (:input layers))
          (.setOutputNeurons (:output layers))
@@ -223,7 +223,7 @@ Returns the complete neural-network object with randomized weights."
     
     
 (defmethod network SVMPattern ;;no hidden layers - non settable activation
-[pattern & {:as opts}] ;;ignoring activation - only bi-polar is allowed
+[^NeuralNetworkPattern pattern & {:as opts}] ;;ignoring activation - only bi-polar is allowed
  (let [tempsvm    (:svm-type opts)
        tempkernel (:kernel-type opts)
        svm-type    (if (nil? tempsvm) org.encog.ml.svm.SVMType/EpsilonSupportVectorRegression tempsvm) 
@@ -236,7 +236,7 @@ Returns the complete neural-network object with randomized weights."
   .generate)))
     
 (defmethod network PNNPattern ;;no hidden layers - only LinearActivation 
-[pattern & {:as opts}] ;;ignoring activation - only LinearActivation is allowed
+[^NeuralNetworkPattern pattern & {:as opts}] ;;ignoring activation - only LinearActivation is allowed
 (let [tempk    (:kernel opts)
       tempout  (:out-model opts)
       kernel    (if (nil? tempk)   org.encog.neural.pnn.PNNKernelType/Gaussian tempk) 

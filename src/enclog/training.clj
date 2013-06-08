@@ -22,7 +22,7 @@
        (org.encog.neural.data.basic BasicNeuralDataPair)
        (org.encog.neural.rbf.training SVDTraining)
        (org.encog.ml.data.basic BasicMLData BasicMLDataSet BasicMLDataPair BasicMLSequenceSet)
-       (org.encog.ml.data MLDataSet)
+       (org.encog.ml.data MLData  MLDataSet)
        (org.encog.ml.data.temporal TemporalMLDataSet)
        (org.encog.ml.data.folded FoldedDataSet)
        (org.encog.ml.train MLTrain)
@@ -43,6 +43,8 @@
 
 ;--------------------------------------*SOURCE*--------------------------------------------------------------------------------
 ;------------------------------------------------------------------------------------------------------------------------------
+(set! *warn-on-reflection* true)
+
 (defn data 
 "Constructs a MLData object given some data which can be nested. Options include:
  ---------------------------------------------------------------------------------------
@@ -50,7 +52,7 @@
  :basic-complex (not wrapped)  :folded :basic-pair :neural-pair :sequence-set
  ---------------------------------------------------------------------------------------
  Returns the actual MLData object or a closure that needs to be called again with extra arguments." 
-[of-type & data]
+^MLData [of-type & data]
 (case of-type
    :basic   (if (number? (first data)) (BasicMLData. (first data)) ;initialised empty  
                                        (BasicMLData. (double-array (first data)))) ;initialised with train data
@@ -125,7 +127,7 @@
   (randomizer :fan-in :boundary 0.9 :symmetric? true)
   (randomizer :fan-in :min 0.49 :max 0.9 :sqr-root? true) 
   (randomizer :nguyen-widrow)" 
-[type & {:as opts}]
+^Randomizer [type & {:as opts}]
 (case type
     :range      (RangeRandomizer. (:min opts) (:max opts)) ;range randomizer
     :consistent (ConsistentRandomizer. (:min opts) (:max opts)) ;consistent range randomizer

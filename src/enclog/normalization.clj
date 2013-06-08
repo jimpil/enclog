@@ -5,13 +5,13 @@
        (org.encog.util.normalize.target NormalizationStorageArray1D 
                                         NormalizationStorageArray2D
                                         NormalizationStorageCSV
-                                        NormalizationStorageNeuralDataSet)
+                                        NormalizationStorageNeuralDataSet NormalizationStorage)
        (org.encog.util.normalize.input BasicInputField 
                                        InputFieldCSV 
                                        InputFieldArray1D
                                        InputFieldArray2D
                                        InputField)
-       (org.encog.util.normalize.output OutputFieldRangeMapped )
+       (org.encog.util.normalize.output OutputFieldRangeMapped OutputField)
        (org.encog.util.normalize.output.multiplicative OutputFieldMultiplicative 
                                                        MultiplicativeGroup)
        (org.encog.util.normalize.output.zaxis OutputFieldZAxis ZAxisGroup)
@@ -24,6 +24,8 @@
        (org.encog.util.normalize.output.mapped OutputFieldEncode)                                
        (org.encog.util.arrayutil NormalizeArray)
 ))
+
+(set! *warn-on-reflection* true)
 ;--------------------------------------------   
 (defn target-storage
 "Constructs a Normalization storage object. Options [with args] include:
@@ -35,14 +37,13 @@
  (target-storage :norm-array2d [50 20]) ;;50 rows 20 columns
  (target-storage :norm-dataset [50 30]) ;;input-count & ideal-count
  (target-storage :norm-csv nil :target-file  \"some-file.csv\")  " 
-[type [size1 size2] & {:keys [target-file]}]
+^NormalizationStorage [type [size1 size2] & {:keys [target-file]}]
 (case type
        :norm-array     (NormalizationStorageArray1D. (make-array Double/TYPE size1)) ;just rows
        :norm-array2d   (NormalizationStorageArray2D. (make-array Double/TYPE size1 size2)) ;columns, rows
-       :norm-csv       (NormalizationStorageCSV. (java.io.File. target-file))  ;where to write the csv file
+       :norm-csv       (NormalizationStorageCSV. (java.io.File. ^String target-file))  ;where to write the csv file
        :norm-dataset   (NormalizationStorageNeuralDataSet. size1 size2)    ;input-count & ideal-count
-;:else (throw (IllegalArgumentException. "Unsupported storage-target type!"))
-))    
+(throw (IllegalArgumentException. "Unsupported storage-target type!"))))    
  
     
 (defn input
@@ -50,26 +51,25 @@
 ----------------------------------------------------------------------------------------
 :basic   :csv   :array-1d    :array-2d  
 ----------------------------------------------------------------------------------------" 
-[element & {:keys [forNetwork? type column-offset index2] 
-            :or {forNetwork? true type :array-1d column-offset 5}}] 
+^InputField [element & {:keys [forNetwork? type column-offset index2] 
+                        :or {forNetwork? true type :array-1d column-offset 5}}] 
 (case type
          :basic     (doto (BasicInputField.) 
                       (.setCurrentValue element) ;element must be a Number
                       (.setUsedForNetworkInput forNetwork?))  
-         :csv       (InputFieldCSV. forNetwork? (java.io.File. element) column-offset) ;element must be a string     
+         :csv       (InputFieldCSV. forNetwork? (java.io.File. ^String element) column-offset) ;element must be a string     
          :array-1d  (InputFieldArray1D. forNetwork? (double-array element)) ; element must be a seq     
          :array-2d  (InputFieldArray2D. forNetwork? 
                         (into-array (map double-array element)) index2) ; element must be a 2d seq
-       (throw (IllegalArgumentException. "Unsupported input-field type!"))    
- ))
+  (throw (IllegalArgumentException. "Unsupported input-field type!"))))
  
 (defn output
 "Constructs an output field to be used with the DataNormalization class. Options include:
 ----------------------------------------------------------------------------------------
 :direct  :range-mapped  :z-axis   :multiplicative  :nominal 
 ----------------------------------------------------------------------------------------" 
-[input-field & {:keys [one-of-n? type top bottom group]
-               :or {type :range-mapped one-of-n? false bottom -1.0 top 1.0}}] 
+^OutputField [^InputField input-field & {:keys [one-of-n? type top bottom group]
+                                         :or {type :range-mapped one-of-n? false bottom -1.0 top 1.0}}] 
 (case type  
        :direct        (OutputFieldDirect. input-field) ;will simply pass the input value to the output (not very useful)
        ;maps a seq of numbers to a specific range. For Support Vector Machines and many neural networks based on the 
@@ -87,8 +87,7 @@
                             (.addItem input-field))
                       (doto (OutputEquilateral. top bottom) ;better alternative for nominal values usually
                             (.addItem input-field)))
-      (throw (IllegalArgumentException. "Unsupported output-field type!")) 
-))
+ (throw (IllegalArgumentException. "Unsupported output-field type!")) ))
 
 
 (definline data-normalization [storage] 
@@ -97,7 +96,7 @@
 
 (defn normalize 
 "Function for producing normalised values. It is normally being used from within the main 'prepare' function."
-[ins outs max min storage] ;ins must be a seq
+[ins outs max min ^NormalizationStorage storage] ;ins must be a seq
 (let [norm  (data-normalization storage)]
   (mapv #(do (.addInputField norm %1) (.addOutputField norm %2)) ins outs)
   (.process norm)
@@ -124,13 +123,13 @@
 [inputs outputs storage & {:keys [how has-headers? top bottom raw-seq] 
                            :or {has-headers? false raw-seq [] top 1.0 bottom -1.0}}] ;;defaults 
 (case how  
-       :array-range  (let [norm (NormalizeArray.)] ;convenient array normalization
-                       (do (.setNormalizedHigh norm top)
-                           (.setNormalizedLow norm  bottom)  
-                           (.process norm  (double-array raw-seq))))
+       :array-range  (.process
+                        (doto (NormalizeArray.)  
+                          (.setNormalizedHigh top)
+                          (.setNormalizedLow bottom)) (double-array raw-seq))
        :csv-range    ;convenient csv file normalization
-                       (let [input  (java.io.File. inputs) ;in this case inputs & storage should be strings (file-names)
-                             output (java.io.File. storage)
+                       (let [input  (java.io.File. ^String inputs) ;in this case inputs & storage should be strings (file-names)
+                             output (java.io.File. ^String storage)
                              analyst (EncogAnalyst.) 
                              wizard (AnalystWizard. analyst)
                              norm (AnalystNormalizeCSV.)]
@@ -138,7 +137,6 @@
                          (.analyze norm  input has-headers? CSVFormat/ENGLISH analyst)
                          ;(. norm setOutputFormat CSVFormat/ENGLISH)
                          (.setProduceOutputHeaders norm  has-headers?)
-                         (.normalize  norm normalize output))                            
-  (normalize inputs outputs top bottom storage)))                       
-
+                         (.normalize norm output))                            
+  (normalize inputs outputs top bottom storage))) 
 
