@@ -244,7 +244,7 @@
  as a result of training."
 ([^MLTrain method error-tolerance limit strategies] ;;eg: (new RequiredImprovementStrategy 5) 
  (apply add-strategies method strategies) 
-    (loop [epoch (int 1)]
+    (loop [epoch 1]
       (if (< limit epoch) (.getMethod method) ;failed to converge - return the best network
        (do (.iteration method)
            (println "Iteration #" (Format/formatInteger epoch) 
