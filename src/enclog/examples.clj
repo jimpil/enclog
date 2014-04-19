@@ -6,18 +6,18 @@
 (:import ;(org.encog.ml.train.strategy RequiredImprovementStrategy)
          (org.encog.neural.networks.training TrainingSetScore)
          (org.encog.util EngineArray Format)
-         (org.encog.neural.neat.training NEATTraining)
-         (org.encog.neural.neat NEATPopulation NEATNetwork)
-         (org.encog.ml.genetic.genome Genome CalculateGenomeScore)
+         (org.encog.neural.neat NEATPopulation NEATNetwork NEATUtil)
+        ; (org.encog.ml.genetic.genome Genome CalculateGenomeScore)
          (org.encog.ml.bayesian EventType)
          (org.encog.ml.bayesian.query.enumerate EnumerationQuery)
          (org.encog.mathutil.probability CalcProbability) 
          ;(org.encog.util.simple EncogUtility)
          (java.text NumberFormat)))
 ;--------------------------------------*XOR-CLASSIC*------------------------------------------------------------
+
 (defn xor 
 "The classic XOR example from the encog book/wiki."
-[^Boolean train-to-error?]
+[train-to-error?]
 (let [xor-input [[0.0 0.0] [1.0 0.0] [0.0 0.1] [1.0 1.0]]
       xor-ideal [[0.0] [1.0] [1.0] [0.0]] 
       dataset   (data :basic-dataset xor-input xor-ideal)
@@ -31,8 +31,8 @@
       (if train-to-error? 
          (train trainer 0.01 []) ;train to max error regardless of iterations
          (train trainer 0.01 300 [] #_[(RequiredImprovementStrategy. 5)])) ;;train to max iterations and max error
-     (do (println "\nNeural Network Results:")
-     (evaluate net dataset)))) 
+      (println "\nNeural Network Results:")
+      (evaluate net dataset)))
       
     ;(loop [t false counter 0 _ nil] 
     ;  (if t (println "Nailed it after" (str counter) "times!")
@@ -56,20 +56,22 @@
 (let [xor-input [[0.0 0.0] [1.0 0.0] [0.0 0.1] [1.0 1.0]]
       xor-ideal [[0.0] [1.0] [1.0] [0.0]] 
       dataset    (data :basic-dataset xor-input xor-ideal)
-      activation (activation :step)
-      population (NEATPopulation. 2 1 1000)
-      trainer    (NEATTraining. (TrainingSetScore. dataset) population)]
+      activation (doto (activation :step) 
+                    (.setCenter 0.5))
+      population (doto (NEATPopulation. 2 1 1000)
+                    (.setInitialConnectionDensity 1.0) ;;not needed but speeds up training
+                    (.setNEATActivationFunction activation)
+                    .reset)
+      trainer    (NEATUtil/constructNEATTrainer population (TrainingSetScore. dataset))
                ;(trainer :neat :fitness-fn #(...) population)
                 ;this is the alternative when you have an actual Clojure function that you wan to use
                 ;as the fitness-function. Here the implementation is already provided in a Java class,
                 ;that is why I'm not using my own function instead.
-      (do (.setCenter activation 0.5)
-          (.setNeatActivationFunction population activation)) 
-      (let [best ^NEATNetwork (if train-to-error? 
-                                 (train trainer 0.01 [])       ;;error-tolerance = 1%
-                                 (train trainer 0.01 200 []))] ;;iteration limit = 200
-              (do (println "\nNeat Network results:")
-                  (evaluate best dataset))) ))
+       best  (if train-to-error? 
+                           (train trainer 0.01 [])       ;;error-tolerance = 1%
+                           (train trainer 0.01 200 []))] ;;iteration limit = 200
+               (println "\nNeat Network results:")
+               (evaluate best dataset)) )
       
 
 ;----------------------------------------------------------------------------------------------------------
@@ -303,6 +305,7 @@ best)) ;returns the trained network at the end
 
 ;---------------------------------------------------------------------------------------------------------------
 ;--------------------------------TRAVELLING-SALESMAN-PROBLEM*---------------------------------------------------
+(comment 
 
 (defprotocol Proximable
   "Satisfiers can calculate their proximity to others."
@@ -358,6 +361,8 @@ Proximable
   (.calculateScore ga genome)))
     (do (.claim population ga) 
         (.sort population))))
+
+);end comment
 
 
 ;-----------------------------------------------------------------------------------------------------------
@@ -455,23 +460,23 @@ Proximable
 (test-it  "sports" )
 (test-it  "today is secret")
 (test-it  "secret offer")
-(test-it  "secret is secret"))) 'DONE!)
+(test-it  "secret is secret"))) 'DONE!)  
 ;---------------------------------------------------------------------------------------------------
 
 ;---------------------------------------------------------------------------------------------------
 ;run the lunar lander example using main otherwise the repl will hang under leiningen. 
 (defn -main [] 
-(xor true)
-(xor false)
+;(xor true)
+;(xor false)
 (xor-neat false)
-(println (simple-cluster [[28 15 22] [16 15 32] [32 20 44] [1 2 3] [3 2 1]] 2 20)) ;the encog clustering example
+;(println (simple-cluster [[28 15 22] [16 15 32] [32 20 44] [1 2 3] [3 2 1]] 2 20)) ;the encog clustering example
 ;from http://cs.gmu.edu/cne/modules/dau/stat/clustgalgs/clust5_bdy.html
-(println (simple-cluster [[1.1 60] [8.2 20] [4.2 35] [1.5 21] [7.6 15] [2 55]  [3.9 39] ] 4 20) )
-(println  (simple-cluster [[2 10] [2 5] [8 4] [5 8] [7 5] [6 4] [1 2] [4 9] ] 3 10))
-(simple-cluster [[1 1] [2 1] [4 3] [5 4]] 2 5) ;from http://people.revoledu.com/kardi/tutorial/kMean/NumericalExample.htm
-(simple-bayes)
-(test-Laplaces 0 1)
-(predict-sunspot sunspots)
-(norm-ex-1d) 
-(try-it (lunar-lander 100))
+;(println (simple-cluster [[1.1 60] [8.2 20] [4.2 35] [1.5 21] [7.6 15] [2 55]  [3.9 39] ] 4 20) )
+;(println  (simple-cluster [[2 10] [2 5] [8 4] [5 8] [7 5] [6 4] [1 2] [4 9] ] 3 10))
+;(println (simple-cluster [[1 1] [2 1] [4 3] [5 4]] 2 5)) ;from http://people.revoledu.com/kardi/tutorial/kMean/NumericalExample.htm
+;(simple-bayes)
+;(test-Laplaces 0 1)
+;(predict-sunspot sunspots)
+;(norm-ex-1d) 
+;(try-it (lunar-lander 100))
 )

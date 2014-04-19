@@ -1,5 +1,31 @@
+/*
+ * Encog(tm) Java Examples v3.2
+ * http://www.heatonresearch.com/encog/
+ * https://github.com/encog/encog-java-examples
+ *
+ * Copyright 2008-2013 Heaton Research, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *   
+ * For more information on Heaton Research copyrights, licenses 
+ * and trademarks visit:
+ * http://www.heatonresearch.com/copyright
+ */
+package org.encog.examples.neural.predict.sunspot;
+
 import java.text.NumberFormat;
 
+import org.encog.Encog;
 import org.encog.ml.data.MLData;
 import org.encog.ml.data.MLDataSet;
 import org.encog.ml.data.basic.BasicMLData;
@@ -9,9 +35,16 @@ import org.encog.util.EngineArray;
 import org.encog.util.arrayutil.NormalizeArray;
 import org.encog.util.arrayutil.TemporalWindowArray;
 
+/**
+ * This example predicts sunspots using a support vector machine.
+ * 
+ * The sunspot data is from an example by Karsten Kutza, 
+ * written in C on 1996-01-24.
+ * http://www.neural-networks-at-your-fingertips.com
+ */
 public class PredictSunspotSVM {
 
-        public final static double[] SUNSPOTS = {
+	public final static double[] SUNSPOTS = {
             0.0262,  0.0575,  0.0837,  0.1203,  0.1883,  0.3033,  
             0.1517,  0.1046,  0.0523,  0.0418,  0.0157,  0.0000,  
             0.0000,  0.0105,  0.0575,  0.1412,  0.2458,  0.3295,  
@@ -60,105 +93,105 @@ public class PredictSunspotSVM {
             0.5465,  0.3483,  0.3603,  0.1987,  0.1804,  0.0811,  
             0.0659,  0.1428,  0.4838,  0.8127 
           };
-        
-        public final static int STARTING_YEAR = 1700;
-        public final static int WINDOW_SIZE = 30;
-        public final static int TRAIN_START = WINDOW_SIZE;
-        public final static int TRAIN_END = 259;
-        public final static int EVALUATE_START = 260;
-        public final static int EVALUATE_END = SUNSPOTS.length-1;
-        
-        /**
-         * This really should be lowered, I am setting it to a level here that will
-         * train in under a minute.
-         */
-        public final static double MAX_ERROR = 0.01;
+	
+	public final static int STARTING_YEAR = 1700;
+	public final static int WINDOW_SIZE = 30;
+	public final static int TRAIN_START = WINDOW_SIZE;
+	public final static int TRAIN_END = 259;
+	public final static int EVALUATE_START = 260;
+	public final static int EVALUATE_END = SUNSPOTS.length-1;
+	
+	/**
+	 * This really should be lowered, I am setting it to a level here that will
+	 * train in under a minute.
+	 */
+	public final static double MAX_ERROR = 0.01;
 
-        private double[] normalizedSunspots;
-        private double[] closedLoopSunspots;
-        
-        public void normalizeSunspots(double lo, double hi) {
+	private double[] normalizedSunspots;
+	private double[] closedLoopSunspots;
+	
+	public void normalizeSunspots(double lo, double hi) {
         NormalizeArray norm = new NormalizeArray();
         norm.setNormalizedHigh( hi);
         norm.setNormalizedLow( lo);
 
         // create arrays to hold the normalized sunspots
         normalizedSunspots = norm.process(SUNSPOTS);
-        double[] test = norm.process(SUNSPOTS);
         closedLoopSunspots = EngineArray.arrayCopy(normalizedSunspots);
 
-        }
-        
-        public MLDataSet generateTraining() {           
-                TemporalWindowArray temp = new TemporalWindowArray(WINDOW_SIZE, 1);
-                temp.analyze(this.normalizedSunspots);
-                return temp.process(this.normalizedSunspots);
-        }
-        
-        public SVM createNetwork()
-        {
-                SVM network = new SVM(WINDOW_SIZE,true);
-                return network;
-        }
-        
-        public void train(SVM network,MLDataSet training)
-        {
-                final SVMTrain train = new SVMTrain(network, training);
-                train.iteration();
-        }
-        
-        public void predict(SVM network)
-        {
-                NumberFormat f = NumberFormat.getNumberInstance();
-                f.setMaximumFractionDigits(4);
-                f.setMinimumFractionDigits(4);
-                
-                System.out.println("Year\tActual\tPredict\tClosed Loop Predict");
-                
-                for(int year=EVALUATE_START;year<EVALUATE_END;year++)
-                {
-                        // calculate based on actual data
-                        MLData input = new BasicMLData(WINDOW_SIZE);
-                        for(int i=0;i<input.size();i++)
-                        {
-                                input.setData(i,this.normalizedSunspots[(year-WINDOW_SIZE)+i]);
-                        }
-                        MLData output = network.compute(input);
-                        double prediction = output.getData(0);
-                        this.closedLoopSunspots[year] = prediction;
-                        
-                        // calculate "closed loop", based on predicted data
-                        for(int i=0;i<input.size();i++)
-                        {
-                                input.setData(i,this.closedLoopSunspots[(year-WINDOW_SIZE)+i]);
-                        }
-                        output = network.compute(input);
-                        double closedLoopPrediction = output.getData(0);
-                        
-                        // display
-                        System.out.println((STARTING_YEAR+year)
-                                        +"\t"+f.format(this.normalizedSunspots[year])
-                                        +"\t"+f.format(prediction)
-                                        +"\t"+f.format(closedLoopPrediction)
-                        );
-                        
-                }
-        }
-        
-        public void run()
-        {
-                normalizeSunspots(0.1,0.9);
-                SVM network = createNetwork();
-                MLDataSet training = generateTraining();
-                train(network,training);
-                predict(network);
-                
-        }
-        
-        public static void main(String args[])
-        {
-                PredictSunspotSVM sunspot = new PredictSunspotSVM();
-                sunspot.run();
-        }
+	}
+	
+	public MLDataSet generateTraining() {		
+		TemporalWindowArray temp = new TemporalWindowArray(WINDOW_SIZE, 1);
+		temp.analyze(this.normalizedSunspots);
+		return temp.process(this.normalizedSunspots);
+	}
+	
+	public SVM createNetwork()
+	{
+		SVM network = new SVM(WINDOW_SIZE,true);
+		return network;
+	}
+	
+	public void train(SVM network,MLDataSet training)
+	{
+		final SVMTrain train = new SVMTrain(network, training);
+		train.iteration();
+	}
+	
+	public void predict(SVM network)
+	{
+		NumberFormat f = NumberFormat.getNumberInstance();
+		f.setMaximumFractionDigits(4);
+		f.setMinimumFractionDigits(4);
+		
+		System.out.println("Year\tActual\tPredict\tClosed Loop Predict");
+		
+		for(int year=EVALUATE_START;year<EVALUATE_END;year++)
+		{
+			// calculate based on actual data
+			MLData input = new BasicMLData(WINDOW_SIZE);
+			for(int i=0;i<input.size();i++)
+			{
+				input.setData(i,this.normalizedSunspots[(year-WINDOW_SIZE)+i]);
+			}
+			MLData output = network.compute(input);
+			double prediction = output.getData(0);
+			this.closedLoopSunspots[year] = prediction;
+			
+			// calculate "closed loop", based on predicted data
+			for(int i=0;i<input.size();i++)
+			{
+				input.setData(i,this.closedLoopSunspots[(year-WINDOW_SIZE)+i]);
+			}
+			output = network.compute(input);
+			double closedLoopPrediction = output.getData(0);
+			
+			// display
+			System.out.println((STARTING_YEAR+year)
+					+"\t"+f.format(this.normalizedSunspots[year])
+					+"\t"+f.format(prediction)
+					+"\t"+f.format(closedLoopPrediction)
+			);
+			
+		}
+	}
+	
+	public void run()
+	{
+		normalizeSunspots(0.1,0.9);
+		SVM network = createNetwork();
+		MLDataSet training = generateTraining();
+		train(network,training);
+		predict(network);
+		
+	}
+	
+	public static void main(String args[])
+	{
+		PredictSunspotSVM sunspot = new PredictSunspotSVM();
+		sunspot.run();
+		Encog.getInstance().shutdown();
+	}
 
 }

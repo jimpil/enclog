@@ -1,23 +1,25 @@
 (ns enclog.training
 (:import
-       (org.encog.neural.networks.training CalculateScore)
+       (org.encog.ml CalculateScore)
        (org.encog.neural.networks.training.simple TrainAdaline)
        (org.encog.neural.networks.training.propagation.back  Backpropagation)
        (org.encog.neural.networks.training.propagation.manhattan ManhattanPropagation)              
        (org.encog.neural.networks.training.propagation.quick  QuickPropagation) 
        (org.encog.neural.networks.training.propagation.scg ScaledConjugateGradient)
        (org.encog.neural.networks.training.propagation.resilient ResilientPropagation)
-       (org.encog.neural.networks.training.genetic NeuralGeneticAlgorithm)
+       (org.encog.ml.genetic MLMethodGeneticAlgorithm)
        (org.encog.neural.networks.training.pnn TrainBasicPNN)
        (org.encog.neural.networks.training.nm NelderMeadTraining)
        (org.encog.neural.networks.training.anneal NeuralSimulatedAnnealing)
-       (org.encog.neural.neat.training NEATTraining)
+       (org.encog.ml.ea.train EvolutionaryAlgorithm)
+       (org.encog.ml.train MLTrain)
+       (org.encog.neural.neat NEATUtil)
        (org.encog.neural.som.training.basic BasicTrainSOM)
        (org.encog.neural.som.training.basic.neighborhood 
                                     NeighborhoodFunction NeighborhoodRBF NeighborhoodRBF1D 
                                     NeighborhoodBubble NeighborhoodSingle)
        (org.encog.neural.neat NEATPopulation)
-       (org.encog.neural.rbf RBFNetwork)
+       (org.encog.neural.rbf RBFNetwork) 
        (org.encog.neural.som SOM) 
        (org.encog.neural.data.basic BasicNeuralDataPair)
        (org.encog.neural.rbf.training SVDTraining)
@@ -25,10 +27,9 @@
        (org.encog.ml.data MLData  MLDataSet)
        (org.encog.ml.data.temporal TemporalMLDataSet)
        (org.encog.ml.data.folded FoldedDataSet)
-       (org.encog.ml.train MLTrain)
        (org.encog.ml.svm.training SVMTrain)
        (org.encog.ml.svm SVM)
-       (org.encog.ml MLRegression)
+       (org.encog.ml MLRegression MethodFactory)
        (org.encog.util.simple EncogUtility)
        (org.encog.util Format)
        (org.encog.neural.networks BasicNetwork)
@@ -52,7 +53,7 @@
  :basic-complex (not wrapped)  :folded :basic-pair :neural-pair :sequence-set
  ---------------------------------------------------------------------------------------
  Returns the actual MLData object or a closure that needs to be called again with extra arguments." 
-^MLData [of-type & data]
+ [of-type & data]
 (case of-type
    :basic   (if (number? (first data)) (BasicMLData. (first data)) ;initialised empty  
                                        (BasicMLData. (double-array (first data)))) ;initialised with train data
@@ -174,17 +175,26 @@
 `(BagOfWords. ~k))    
                              
 
-(definline implement-CalculateScore 
+(defn implement-CalculateScore 
 "Consumer convenience for implementing the CalculateScore interface which is needed for genetic and simulated annealing training."
-[minimize? eval-fn]
-`(reify CalculateScore 
-  (^double calculateScore  [this ^MLRegression n#] (~eval-fn n#)) 
-  (^boolean shouldMinimize [this] ~minimize?)))
+([minimize? single-threaded? eval-fn]
+(reify CalculateScore 
+  (calculateScore  [this  n] (eval-fn n)) 
+  (shouldMinimize  [this] minimize?)
+  (requireSingleThreaded [this] single-threaded?)))
+([minimize? eval-fn]  
+  (implement-CalculateScore minimize? false eval-fn)))
+
   
 (defn add-strategies [^MLTrain method & strategies]
 "Consumer convenience for adding strategies to a training method. Returns the modified training method."
 (doseq [s strategies]
   (.addStrategy method s)) method)  
+
+(defn- network->MethodFactory [net]
+ (reify MethodFactory 
+   (factor [_] 
+    (doto net .reset))))
 
 (defn trainer
 "Constructs a training-method (MLTrain) object  given a method. Options [with respective args] inlude:
@@ -210,9 +220,9 @@
        :back-prop  (Backpropagation.  (:network opts) (:training-set opts)) 
        :manhattan  (ManhattanPropagation. (:network opts) (:training-set opts) (:learning-rate opts))
        :quick-prop (QuickPropagation. (:network opts) (:training-set opts) (if-let [lr (:learning-rate opts)] lr 2.0))
-       :genetic    (NeuralGeneticAlgorithm. (:network opts) (:randomizer opts) 
+       :genetic    (MLMethodGeneticAlgorithm. (network->MethodFactory (:network opts)) #_(:randomizer opts) 
                                             (implement-CalculateScore (:minimize? opts) (:fitness-fn opts)) 
-                                            (:population-size opts) (:mutation-percent opts) (:mate-percent opts))
+                                            (:population-size opts) #_(:mutation-percent opts) #_(:mate-percent opts))
        :scaled-conjugent   (ScaledConjugateGradient. (:network opts) (:training-set opts))
        :pnn                (TrainBasicPNN.  (:network opts) (:training-set opts))
        :annealing         (NeuralSimulatedAnnealing. (:network opts) 
@@ -226,10 +236,10 @@
        :neat       (if-not (:population-object opts)
        ;;neat creates a population so we don't really need an actual network. We can skip the 'make-network' bit.
        ;;population can be an integer or a NEATPopulation object 
-                          (NEATTraining. (implement-CalculateScore (:minimize? opts) (:fitness-fn opts)) 
+                          (NEATUtil/constructNEATTrainer (implement-CalculateScore (:minimize? opts) (:fitness-fn opts)) 
                                          (:input opts) (:output opts) (:population-size opts))
-                          (NEATTraining. (implement-CalculateScore (:minimize? opts) (:fitness-fn opts)) 
-                                         (:population-object opts))) 
+                          (NEATUtil/constructNEATTrainer (:population-object opts)
+                                (implement-CalculateScore (:minimize? opts) (:fitness-fn opts)))) 
  (throw (IllegalArgumentException. "Unsupported training method!"))     
 ))
 
@@ -262,10 +272,11 @@
   (println "Error:" (.getError method)) 
   (.getMethod method)))
 
-(definline evaluate 
-"This expands to EncogUtility.evaluate(n,d). Expects a network and a dataset and prints the evaluation." 
+(defn evaluate 
+"This simply delagates to EncogUtility.evaluate(n,d). 
+ Expects a network and a dataset and prints the evaluation." 
 [n ds]
- `(EncogUtility/evaluate ~n ~ds)) 
+ (EncogUtility/evaluate n ds)) 
 
 
  
