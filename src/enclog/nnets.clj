@@ -5,11 +5,11 @@
                               BoltzmannPattern CPNPattern ElmanPattern HopfieldPattern PatternError
                               JordanPattern SOMPattern PNNPattern SVMPattern RadialBasisPattern]
 
-[org.encog.engine.network.activation 
- ActivationTANH ActivationSigmoid ActivationGaussian ActivationBiPolar
- ActivationLinear  ActivationLOG ActivationRamp ActivationSoftMax ActivationStep
- ActivationSIN ActivationBipolarSteepenedSigmoid ActivationClippedLinear
- ActivationCompetitive ActivationElliott ActivationElliottSymmetric ActivationSteepenedSigmoid]
+    [org.encog.engine.network.activation
+     ActivationTANH ActivationSigmoid ActivationGaussian ActivationBiPolar
+     ActivationLinear  ActivationLOG ActivationRamp ActivationSoftMax ActivationStep
+     ActivationSIN ActivationBipolarSteepenedSigmoid ActivationClippedLinear
+     ActivationCompetitive ActivationElliott ActivationElliottSymmetric ActivationSteepenedSigmoid]
     [org.encog.ml.bayesian BayesianNetwork BayesianEvent]
     ))
 (set! *warn-on-reflection* true)
@@ -78,7 +78,7 @@
     :steepened-sigmoid (ActivationSteepenedSigmoid.)
     (throw (IllegalArgumentException. "Unsupported activation-function!"))
     ))
- 
+
 (defn bayesian-event [label & choices]
   (if (empty? choices)
     (BayesianEvent. label)
