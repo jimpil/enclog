@@ -4,7 +4,8 @@
   (:import (org.encog.util.normalize.output.zaxis OutputFieldZAxisSynthetic ZAxisGroup)
            (org.encog.util.normalize.output.multiplicative MultiplicativeGroup) ))
            
-(defn- assert-array-equals "Port of org.junit.Assert.assertArrayEquals(a1 a2 delta) supporting delta (tolerance)." 
+(defn- assert-array-equals
+  "Port of org.junit.Assert.assertArrayEquals(a1 a2 delta) supporting delta (tolerance)."
  [a1 a2 tolerance]
   (every? #(<= % tolerance)
     (map #(Math/abs (- %1 %2)) (seq a1) (seq a2))))

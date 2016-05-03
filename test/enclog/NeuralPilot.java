@@ -77,3 +77,4 @@ public class NeuralPilot {
 		return(sim.score());
 	}
 }
+

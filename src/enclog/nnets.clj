@@ -1,21 +1,21 @@
 (ns enclog.nnets
-(:import 
-[org.encog.neural.pattern NeuralNetworkPattern 
-       FeedForwardPattern ADALINEPattern ART1Pattern BAMPattern
-       BoltzmannPattern CPNPattern ElmanPattern HopfieldPattern PatternError
-       JordanPattern SOMPattern PNNPattern SVMPattern RadialBasisPattern]
-       
+  (:import
+    [org.encog.neural.pattern NeuralNetworkPattern
+                              FeedForwardPattern ADALINEPattern ART1Pattern BAMPattern
+                              BoltzmannPattern CPNPattern ElmanPattern HopfieldPattern PatternError
+                              JordanPattern SOMPattern PNNPattern SVMPattern RadialBasisPattern]
+
 [org.encog.engine.network.activation 
-       ActivationTANH ActivationSigmoid ActivationGaussian ActivationBiPolar 
-       ActivationLinear  ActivationLOG ActivationRamp ActivationSoftMax ActivationStep
-       ActivationSIN ActivationBipolarSteepenedSigmoid ActivationClippedLinear
-       ActivationCompetitive ActivationElliott ActivationElliottSymmetric ActivationSteepenedSigmoid]     
-[org.encog.ml.bayesian BayesianNetwork BayesianEvent]    
-   ))
+ ActivationTANH ActivationSigmoid ActivationGaussian ActivationBiPolar
+ ActivationLinear  ActivationLOG ActivationRamp ActivationSoftMax ActivationStep
+ ActivationSIN ActivationBipolarSteepenedSigmoid ActivationClippedLinear
+ ActivationCompetitive ActivationElliott ActivationElliottSymmetric ActivationSteepenedSigmoid]
+    [org.encog.ml.bayesian BayesianNetwork BayesianEvent]
+    ))
 (set! *warn-on-reflection* true)
 
- (defn neural-pattern  
- "Constructs a neural-pattern from which we can generate 
+(defn neural-pattern
+  "Constructs a neural-pattern from which we can generate
  a concrete network effortlessly (see multi-fn 'network' for more).
  Options include:
  -------------------------------------------------------------
@@ -26,30 +26,30 @@
  Returns an object that implements NeuralNetworkPattern."
   [model & {:as opts}]
   (case model
-       :feed-forward (FeedForwardPattern.)
-       :adaline      (ADALINEPattern.)
-       :art1         (ART1Pattern.)
-       :bam          (BAMPattern.)
-       :boltzman     (BoltzmannPattern.)
-       :cpn          (CPNPattern.)
-       :elman        (ElmanPattern.)
-       :hopfield     (HopfieldPattern.)
-       :jordan       (JordanPattern.)
-       :som          (SOMPattern.)
-       :pnn          (PNNPattern.)
-       :bayesian     :bayesian ;;there is no pattern to instantiate - this is useless - call network instead
-       :svm          (if-not (:regression? opts) (SVMPattern.)
-                            (doto (SVMPattern.) (.setRegression true)))
-       :rbf          (RadialBasisPattern.)
-   (throw (IllegalArgumentException. "Unsupported neural-pattern!"))
- ))
+    :feed-forward (FeedForwardPattern.)
+    :adaline      (ADALINEPattern.)
+    :art1         (ART1Pattern.)
+    :bam          (BAMPattern.)
+    :boltzman     (BoltzmannPattern.)
+    :cpn          (CPNPattern.)
+    :elman        (ElmanPattern.)
+    :hopfield     (HopfieldPattern.)
+    :jordan       (JordanPattern.)
+    :som          (SOMPattern.)
+    :pnn          (PNNPattern.)
+    :bayesian     :bayesian ;;there is no pattern to instantiate - this is useless - call network instead
+    :svm          (if-not (:regression? opts) (SVMPattern.)
+                                              (doto (SVMPattern.) (.setRegression true)))
+    :rbf          (RadialBasisPattern.)
+    (throw (IllegalArgumentException. "Unsupported neural-pattern!"))
+    ))
 
 ;;usage: 
 ;;(make-pattern :feed-forward)
 ;;(make-pattern :svm)
 
- (defn activation  
- "Constructs an activation-function to be used by the nodes of the network.
+(defn activation
+  "Constructs an activation-function to be used by the nodes of the network.
   Expects a keyword argument. Options include:
   --------------------------------------------------
   :tanh     :sigmoid   :gaussian    :bipolar  
@@ -58,35 +58,35 @@
   :elliot-symmetric :clipped-linear :steepened-sigmoid
   ---------------------------------------------------
   Returns an ActivationFunction object." ;TODO
- [fun]
- (case fun 
-      :tanh     (ActivationTANH.)
-      :sigmoid  (ActivationSigmoid.)
-      :gaussian (ActivationGaussian.)
-      :bipolar  (ActivationBiPolar.)
-      :linear   (ActivationLinear.) 
-      :log      (ActivationLOG.)
-      :ramp     (ActivationRamp.)
-      :sin      (ActivationSIN.)
-      :soft-max (ActivationSoftMax.)
-      :step     (ActivationStep.)
-      :bipolar-steepend (ActivationBipolarSteepenedSigmoid.)
-      :clipped-linear   (ActivationClippedLinear.)
-      :competitive      (ActivationCompetitive.)
-      :elliot           (ActivationElliott.)
-      :elliot-symmetric (ActivationElliottSymmetric.)
-      :steepened-sigmoid (ActivationSteepenedSigmoid.)
-   (throw (IllegalArgumentException. "Unsupported activation-function!"))
- ))
+  [fun]
+  (case fun
+    :tanh     (ActivationTANH.)
+    :sigmoid  (ActivationSigmoid.)
+    :gaussian (ActivationGaussian.)
+    :bipolar  (ActivationBiPolar.)
+    :linear   (ActivationLinear.)
+    :log      (ActivationLOG.)
+    :ramp     (ActivationRamp.)
+    :sin      (ActivationSIN.)
+    :soft-max (ActivationSoftMax.)
+    :step     (ActivationStep.)
+    :bipolar-steepend (ActivationBipolarSteepenedSigmoid.)
+    :clipped-linear   (ActivationClippedLinear.)
+    :competitive      (ActivationCompetitive.)
+    :elliot           (ActivationElliott.)
+    :elliot-symmetric (ActivationElliottSymmetric.)
+    :steepened-sigmoid (ActivationSteepenedSigmoid.)
+    (throw (IllegalArgumentException. "Unsupported activation-function!"))
+    ))
  
- (defn bayesian-event [label & choices]
- (if (empty? choices) 
+(defn bayesian-event [label & choices]
+  (if (empty? choices)
     (BayesianEvent. label)
     (BayesianEvent. label (into-array choices))))
 
 
 (defmulti network 
-"Depending on the neural-pattern passed in, constructs the appropriate network with some layers and an activation-function.
+          "Depending on the neural-pattern passed in, constructs the appropriate network with some layers and an activation-function.
  Options do not need to be in a  map literal. Some networks do not accept hidden layers or a settable activation 
  but you don't worry if youpass in anything weird - it will be ignored. 
  SVM & PNN networks can take a couple of extra args, apart from :input and :output in case you don't want defaults. 
@@ -128,143 +128,145 @@
                          org.encog.neural.pnn.PNNOutputMode/Unsupervised] )           
 --------------------------------------------------------------------------------------------------------
 Returns the complete neural-network object with randomized weights."
-(fn [pattern & layers] (class pattern)));;dispatch-fn only cares about the class of the neural-pattern
+          (fn [pattern & layers] (class pattern)));;dispatch-fn only cares about the class of the neural-pattern
 
 (defmethod network FeedForwardPattern
-[^NeuralNetworkPattern pattern & {:as layers}] 
-    (do 
-       (.setInputNeurons pattern  (:input layers))
-       (.setOutputNeurons pattern (:output layers))
-       (.setActivationFunction pattern (activation (:activation layers)));many activations are allowed with this topology
-(doseq [neuron-number (:hidden layers)] 
-  (.addHiddenLayer pattern neuron-number))
-(.generate pattern)))  ;;finally, return the complete network object
- 
+  [^NeuralNetworkPattern pattern & {:as layers}]
+  (do
+    (.setInputNeurons pattern  (:input layers))
+    (.setOutputNeurons pattern (:output layers))
+    (.setActivationFunction pattern (activation (:activation layers)));many activations are allowed with this topology
+    (doseq [neuron-number (:hidden layers)]
+      (.addHiddenLayer pattern neuron-number))
+    (.generate pattern)))  ;;finally, return the complete network object
+
 (defmethod network ADALINEPattern ;no hidden layers - only ActivationLinear
-[^NeuralNetworkPattern pattern & {:as layers}] ;;ignoring activation 
- (->  (doto pattern  
+  [^NeuralNetworkPattern pattern & {:as layers}] ;;ignoring activation
+  (->  (doto pattern
          (.setInputNeurons  (:input layers))   
          (.setOutputNeurons (:output layers)))
-  .generate)) 
+       .generate))
 
 
 (defmethod network ART1Pattern ;;no hidden layers - only ActivationLinear
-[^NeuralNetworkPattern pattern & {:as layers}] ;;ignoring activation 
+  [^NeuralNetworkPattern pattern & {:as layers}] ;;ignoring activation
   (-> (doto pattern  
-         (.setInputNeurons  (:input layers))
-         (.setOutputNeurons (:output layers)))
-  .generate))
+        (.setInputNeurons  (:input layers))
+        (.setOutputNeurons (:output layers)))
+      .generate))
 
 (defmethod network BAMPattern ;no hidden layers - only ActivationBiPolar
-[^NeuralNetworkPattern pattern & {:as layers}] ;;ignoring layers and activation 
- (-> (doto pattern  
-         (.setF1Neurons (:input layers))
-         (.setF2Neurons (:output layers)))
-   .generate))
- 
+  [^NeuralNetworkPattern pattern & {:as layers}] ;;ignoring layers and activation
+  (-> (doto pattern
+        (.setF1Neurons (:input layers))
+        (.setF2Neurons (:output layers)))
+      .generate))
+
 (defmethod network BoltzmannPattern ;;no hidden layers - only ActivationBipolar
-[^NeuralNetworkPattern pattern _ & {:as layers}] ;;ignoring activation 
- (-> (doto pattern
-      (.setInputNeurons (:input layers)))
-  .generate))
- 
+  [^NeuralNetworkPattern pattern & {:as layers}] ;;ignoring activation
+  (-> (doto pattern
+        (.setInputNeurons (:input layers)))
+      .generate))
+
 (defmethod network CPNPattern ;;one hidden layer - only ActivationBipolar + Competitive
-[^NeuralNetworkPattern pattern & {:as layers}] ;;ignoring activation 
- (-> (doto pattern  
-         (.setInputNeurons  (:input layers))
-         (.setInstarCount   (get (:hidden layers) 0))
-         (.setOutputNeurons (:output layers)))
-  .generate))
- 
+  [^NeuralNetworkPattern pattern & {:as layers}] ;;ignoring activation
+  (-> (reduce (fn [pattern [k v]]
+                (cond-> pattern
+                        (= k :input)  (doto pattern (.setInputNeurons v))
+                        (= k :output)  (doto pattern (.setOutputNeurons v))
+                        (= k :instar)  (doto pattern (.setInstarCount  v))
+                        (= k :outstar)  (doto pattern (.setOutstarCount v))))
+              pattern
+              layers)
+      .generate))
+
 (defmethod network ElmanPattern;;one hidden layer only - settable activation
-[^NeuralNetworkPattern pattern & {:as layers}] 
+  [^NeuralNetworkPattern pattern & {:as layers}]
   (-> (doto pattern  
-         (.setInputNeurons  (:input layers))
-         (.setOutputNeurons (:output layers))
-         (.addHiddenLayer (get (:hidden layers) 0))
-         (.setActivationFunction (activation (:activation layers)))) 
-   .generate))
+        (.setInputNeurons  (:input layers))
+        (.setOutputNeurons (:output layers))
+        (.addHiddenLayer (first (:hidden layers)))
+        (.setActivationFunction (activation (:activation layers))))
+      .generate))
 
 
 (defmethod network HopfieldPattern ;;one hidden layer only - settable activation
-[^NeuralNetworkPattern pattern & {:as layers}] 
- (-> (doto pattern 
-         (.setInputNeurons  (:input layers))
-         (.setOutputNeurons (:output layers))
-         (.addHiddenLayer   (get (:hidden layers) 0))
-         (.setActivationFunction (activation (:activation layers))))
-  .generate))  
+  [^NeuralNetworkPattern pattern & {:as layers}]
+  (-> (doto pattern
+        (.setInputNeurons  (:input layers))
+        (.setOutputNeurons (:output layers))
+        (.addHiddenLayer   (first (:hidden layers)))
+        (.setActivationFunction (activation (:activation layers))))
+      .generate))
  
- 
+
 (defmethod network JordanPattern ;;one hidden layer only - settable activation
-[^NeuralNetworkPattern pattern & {:as layers}] 
+  [^NeuralNetworkPattern pattern & {:as layers}]
   (-> (doto pattern 
-         (.setInputNeurons (:input layers))
-         (.setOutputNeurons (:output layers))
-         (.addHiddenLayer  (get (:hidden layers) 0))
-         (.setActivationFunction pattern (activation (:activation layers))))
-  .generate))
+        (.setInputNeurons (:input layers))
+        (.setOutputNeurons (:output layers))
+        (.addHiddenLayer (first (:hidden layers)))
+        (.setActivationFunction (activation (:activation layers))))
+      .generate))
 
 
 (defmethod network SOMPattern ;non settable activation - no hidden layers
-[^NeuralNetworkPattern pattern & {:as layers}] ;;ignoring activation
+  [^NeuralNetworkPattern pattern & {:as layers}] ;;ignoring activation
   (-> (doto pattern  
-         (.setInputNeurons  (:input layers))
-         (.setOutputNeurons (:output layers)))
-   .generate))
- 
+        (.setInputNeurons  (:input layers))
+        (.setOutputNeurons (:output layers)))
+      .generate))
+
 (defmethod network RadialBasisPattern ;usually has one hidden layer - non settable activation
-[^NeuralNetworkPattern pattern & {:as layers}] ;;ignoring activation
+  [^NeuralNetworkPattern pattern & {:as layers}] ;;ignoring activation
   (-> (doto pattern  
-         (.setInputNeurons  (:input layers))
-         (.setOutputNeurons (:output layers))
-         (.addHiddenLayer (get (:hidden layers) 0)))
-  .generate))
+        (.setInputNeurons  (:input layers))
+        (.setOutputNeurons (:output layers))
+        (.addHiddenLayer (first (:hidden layers))))
+      .generate))
     
-    
+
 (defmethod network SVMPattern ;;no hidden layers - non settable activation
-[^NeuralNetworkPattern pattern & {:as opts}] ;;ignoring activation - only bi-polar is allowed
- (let [tempsvm    (:svm-type opts)
-       tempkernel (:kernel-type opts)
-       svm-type    (if (nil? tempsvm) org.encog.ml.svm.SVMType/EpsilonSupportVectorRegression tempsvm) 
-       kernel-type (if (nil? tempkernel) org.encog.ml.svm.KernelType/RadialBasisFunction tempkernel)] 
-  (-> (doto pattern 
-         (.setInputNeurons (:input opts))
-         (.setOutputNeurons 1) ;only one output is allowed
-         (.setKernelType kernel-type)
-         (.setSVMType svm-type)) 
-  .generate)))
-    
+  [^NeuralNetworkPattern pattern & {:as opts}] ;;ignoring activation - only bi-polar is allowed
+  (let [tempsvm    (:svm-type opts)
+        tempkernel (:kernel-type opts)
+        svm-type    (if (nil? tempsvm) org.encog.ml.svm.SVMType/EpsilonSupportVectorRegression tempsvm)
+        kernel-type (if (nil? tempkernel) org.encog.ml.svm.KernelType/RadialBasisFunction tempkernel)]
+    (-> (doto pattern
+          (.setInputNeurons (:input opts))
+          (.setOutputNeurons 1) ;only one output is allowed
+          (.setKernelType kernel-type)
+          (.setSVMType svm-type))
+        .generate)))
+
 (defmethod network PNNPattern ;;no hidden layers - only LinearActivation 
-[^NeuralNetworkPattern pattern & {:as opts}] ;;ignoring activation - only LinearActivation is allowed
-(let [tempk    (:kernel opts)
-      tempout  (:out-model opts)
-      kernel    (if (nil? tempk)   org.encog.neural.pnn.PNNKernelType/Gaussian tempk) 
-      out-model (if (nil? tempout) org.encog.neural.pnn.PNNOutputMode/Regression  tempout)]
- (->  (doto pattern 
-         (.setInputNeurons  (:input opts))
-         (.setOutputNeurons (:output opts))
-         (.setKernel kernel)
-         (.setOutmodel out-model)) 
-  .generate))) 
+  [^NeuralNetworkPattern pattern & {:as opts}] ;;ignoring activation - only LinearActivation is allowed
+  (let [kernel    (:kernel opts org.encog.neural.pnn.PNNKernelType/Gaussian)
+        out-model (:out-model opts org.encog.neural.pnn.PNNOutputMode/Regression)]
+    (->  (doto pattern
+           (.setInputNeurons  (:input opts))
+           (.setOutputNeurons (:output opts))
+           (.setKernel kernel)
+           (.setOutmodel out-model))
+         .generate)))
   
-  
+
 (defmethod network clojure.lang.Keyword
-[pattern & {:as opts}]
-(case pattern
+  [pattern & {:as opts}]
+  (case pattern
     :bayesian 
-      (let [n (BayesianNetwork.)]
-        (if-not (nil? opts) 
+    (let [n (BayesianNetwork.)]
+      (if-not (nil? opts)
         (do 
           (doseq [[label & choices] (:events opts)] 
-               (.createEvent n (apply bayesian-event label choices)))
-                  (doseq [[e1 e2] (partition 2  (:dependencies opts))]
-                    (.createDependency n (.get (.getEventMap n) e1) 
-                                               (.get (.getEventMap n) e2)))
-  (doto n (.finalizeStructure))) n)) ;network ready!
-))    
+            (.createEvent n (apply bayesian-event label choices)))
+          (doseq [[e1 e2] (partition 2  (:dependencies opts))]
+            (.createDependency n (.get (.getEventMap n) e1)
+                               (.get (.getEventMap n) e2)))
+          (doto n (.finalizeStructure))) n)) ;network ready!
+    ))
 ;-----------------------------------------------------------------------------------    
 
 (defmethod network :default 
-[_ _] ;;ignoring everything
-(throw (IllegalArgumentException. "Pattern not recognised or not supported!")))
+  [_ _] ;;ignoring everything
+  (throw (IllegalArgumentException. "Pattern not recognised or not supported!")))

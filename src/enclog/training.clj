@@ -18,9 +18,7 @@
        (org.encog.neural.som.training.basic.neighborhood 
                                     NeighborhoodFunction NeighborhoodRBF NeighborhoodRBF1D 
                                     NeighborhoodBubble NeighborhoodSingle)
-       (org.encog.neural.neat NEATPopulation)
-       (org.encog.neural.rbf RBFNetwork) 
-       (org.encog.neural.som SOM) 
+
        (org.encog.neural.data.basic BasicNeuralDataPair)
        (org.encog.neural.rbf.training SVDTraining)
        (org.encog.ml.data.basic BasicMLData BasicMLDataSet BasicMLDataPair BasicMLSequenceSet)
@@ -55,13 +53,15 @@
  Returns the actual MLData object or a closure that needs to be called again with extra arguments." 
  [of-type & data]
 (case of-type
-   :basic   (if (number? (first data)) (BasicMLData. (first data)) ;initialised empty  
-                                       (BasicMLData. (double-array (first data)))) ;initialised with train data
+   :basic   (if (number? (first data))
+              (BasicMLData. (first data)) ;initialised empty
+              (BasicMLData. (double-array (first data)))) ;initialised with train data
    :basic-complex (throw (IllegalArgumentException. "Complex dataset isnot suported at the moment. Consider using encog directly...")) ;;TODO
-   :basic-dataset (if (empty? data)  (BasicMLDataSet.) ;initialised empty 
-                  (BasicMLDataSet. (into-array (map double-array (first data))) 
-                                   (if (nil? (second data)) nil ;there is no ideal data 
-                                       (into-array (map double-array (second data))))))
+   :basic-dataset (if (empty? data)
+                    (BasicMLDataSet.) ;initialised empty
+                    (BasicMLDataSet. (into-array (map double-array (first data)))
+                                     (when-let [d (second data)] ;; maybe we don't have ideal data
+                                       (into-array (map double-array d)))))
    :temporal-dataset (TemporalMLDataSet. (-> data first int) (-> data second int)) ;;should be numbers
    :temporal-window  (fn [window-size prediction-size]
                        (let [twa (TemporalWindowArray. window-size prediction-size)]
@@ -80,7 +80,7 @@
  -----------------------------------------------
  :single  :bubble  :rbf  :rbf1D
  -----------------------------------------------" 
-[type] 
+^NeighborhoodFunction [type]
 (case type 
        :single (NeighborhoodSingle.) 
        :bubble (fn [radius] (NeighborhoodBubble. (int radius)))
@@ -134,8 +134,9 @@
     :consistent (ConsistentRandomizer. (:min opts) (:max opts)) ;consistent range randomizer
     :constant   (ConstRandomizer. (:constant opts))
     :distort    (Distort. (:factor opts))
-    :fan-in     (if (:symmetric? opts) (FanInRandomizer. (- (:boundary opts)) (:boundary opts) (boolean (:sqr-root? opts)))
-                                       (FanInRandomizer. (:min opts) (:max opts) (boolean (:sqr-root? opts))))
+    :fan-in     (if (:symmetric? opts)
+                  (FanInRandomizer. (- (:boundary opts)) (:boundary opts) (boolean (:sqr-root? opts)))
+                  (FanInRandomizer. (:min opts) (:max opts) (boolean (:sqr-root? opts))))
     :gaussian   (GaussianRandomizer. (:mean opts) (:st-deviation opts))
     :nguyen-widrow  (NguyenWidrowRandomizer.) ;the most performant randomizer for networks
 (throw (IllegalArgumentException. "Unsupported randomization technique!"))  
@@ -147,12 +148,16 @@
  MLMethod (network) -- double -- double[] -- double[][] -- Matrix -- clj-vector (1d / 2d).
  Note: Not all randomizers implement randomize() (only FanIn)." 
 [^Randomizer randomizer data]
-(if-not (vector? data) (do (.randomize randomizer data) data) ;;not a vector (presumably something encog already knows how to handle)
-(let [res2 (when (vector? (first data)) (into-array (mapv #(into-array Double/TYPE %) data))) ;;2d vector
-      res1 (when-not res2 (double-array data))] ;;1d vector
-  (cond res2 (do (.randomize randomizer res2) (vec (map vec res2))) ;got 2d vector return 2d-vectos
+(if-not (vector? data)
+  (do (.randomize randomizer data) data) ;;not a vector (presumably something encog already knows how to handle)
+(let [res2 (when (vector? (first data))
+             (into-array (mapv #(into-array Double/TYPE %) data))) ;;2d vector
+      res1 (when-not res2
+             (double-array data))] ;;1d vector
+  (cond res2
+        (do (.randomize randomizer res2) (mapv vec res2)) ;got 2d vector return 2d-vectos
         res1 (do (.randomize randomizer res1) (vec res1)) ;got 1d-vector return 1d-vector
-  :else (println "NOTHING HAPPENED!!!\n"))))) 
+  ))))
   
   
 (defn cluster 
@@ -160,19 +165,20 @@
  Returns a map where keys are numbers from 1 to n clusters we got back and  values are vectors holding the clustered BasicMLData objects." 
 [raw-data k iterations]
 (let [wrapped (map #(data :basic %) raw-data) ;wrap each inner vector into a BasicMLData object
-      dataset (let [ds (data :basic-dataset)] 
-                (doseq [el wrapped] (.add ds el)) ds) ;make dataset with no ideal data  
+      dataset (let [^MLDataSet ds (data :basic-dataset)]
+                (doseq [^MLData el wrapped]
+                  (.add ds el))
+                ds) ;make dataset with no ideal data
       kmeans  (KMeansClustering. k dataset)  ;the concrete K-Means object  
-      ready   (.iteration kmeans iterations) ;how many iterations
+      _ready   (.iteration kmeans iterations) ;how many iterations
       clusters (.getClusters kmeans) ]       ;the actual clusters - an array of MLCluster objects      
  (->> clusters 
-   (map (comp vec #(.getData %)))
-   (interleave (range 1 (inc k)))
-   (apply sorted-map-by >)        
+   (map #(.getData %))
+   (zipmap (range 1 (inc k)))
    (merge {:number-of-clusters k})))) 
    
-(definline bag-of-words [k]
-`(BagOfWords. ~k))    
+(defn bag-of-words [k]
+(BagOfWords. k))
                              
 
 (defn implement-CalculateScore 
@@ -191,7 +197,7 @@
 (doseq [s strategies]
   (.addStrategy method s)) method)  
 
-(defn- network->MethodFactory [net]
+(defn- network->MethodFactory [ net]
  (reify MethodFactory 
    (factor [_] 
     (doto net .reset))))
@@ -254,14 +260,17 @@
  as a result of training."
 ([^MLTrain method error-tolerance limit strategies] ;;eg: (new RequiredImprovementStrategy 5) 
  (apply add-strategies method strategies) 
-    (loop [epoch 1]
-      (if (< limit epoch) (.getMethod method) ;failed to converge - return the best network
+    (loop [epoch (int 1)]
+      (if (< limit epoch)
+        (.getMethod method) ;failed to converge - return the best network
        (do (.iteration method)
            (println "Iteration #" (Format/formatInteger epoch) 
                     "Error:" (Format/formatPercent (.getError method)) 
                     "Target-Error:" (Format/formatPercent error-tolerance))
-       (if (< (.getError method) error-tolerance) (.getMethod method) ;;succeeded to converge -return the best network 
-       (recur (inc epoch)))))))
+       (if (<= (.getError method) error-tolerance)
+         (do (.finishTraining method)
+             (.getMethod method)) ;;succeeded to converge -return the best network
+       (recur (unchecked-inc-int epoch)))))))
 ([^MLTrain method error-tolerance strategies] 
   (apply add-strategies method strategies)
   (EncogUtility/trainToError method error-tolerance)
@@ -278,5 +287,3 @@
 [n ds]
  (EncogUtility/evaluate n ds)) 
 
-
- 

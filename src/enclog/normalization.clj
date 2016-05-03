@@ -1,6 +1,5 @@
 (ns enclog.normalization
 (:import
-       (org.encog StatusReportable NullStatusReportable)
        (org.encog.util.normalize DataNormalization)
        (org.encog.util.normalize.target NormalizationStorageArray1D 
                                         NormalizationStorageArray2D
@@ -12,9 +11,8 @@
                                        InputFieldArray2D
                                        InputField)
        (org.encog.util.normalize.output OutputFieldRangeMapped OutputField)
-       (org.encog.util.normalize.output.multiplicative OutputFieldMultiplicative 
-                                                       MultiplicativeGroup)
-       (org.encog.util.normalize.output.zaxis OutputFieldZAxis ZAxisGroup)
+       (org.encog.util.normalize.output.multiplicative OutputFieldMultiplicative)
+       (org.encog.util.normalize.output.zaxis OutputFieldZAxis)
        (org.encog.util.normalize.output OutputFieldDirect)  
        (org.encog.app.analyst EncogAnalyst AnalystFileFormat)
        (org.encog.app.analyst.wizard AnalystWizard)
@@ -68,8 +66,8 @@
 ----------------------------------------------------------------------------------------
 :direct  :range-mapped  :z-axis   :multiplicative  :nominal 
 ----------------------------------------------------------------------------------------" 
-^OutputField [^InputField input-field & {:keys [one-of-n? type top bottom group]
-                                         :or {type :range-mapped one-of-n? false bottom -1.0 top 1.0}}] 
+^OutputField [^InputField input-field & {:keys [one-of-n? type top bottom group low high]
+                                         :or {type :range-mapped one-of-n? false bottom -1.0 top 1.0 low -1.5 high 1.5}}]
 (case type  
        :direct        (OutputFieldDirect. input-field) ;will simply pass the input value to the output (not very useful)
        ;maps a seq of numbers to a specific range. For Support Vector Machines and many neural networks based on the 
@@ -84,9 +82,9 @@
        :encode          (OutputFieldEncode. input-field)
        :nominal     (if one-of-n?
                       (doto (OutputOneOf. top bottom)       ;simplistic one-of-n method (not very good)
-                            (.addItem input-field))
+                            (.addItem input-field low high))
                       (doto (OutputEquilateral. top bottom) ;better alternative for nominal values usually
-                            (.addItem input-field)))
+                            (.addItem input-field low high)))
  (throw (IllegalArgumentException. "Unsupported output-field type!")) ))
 
 

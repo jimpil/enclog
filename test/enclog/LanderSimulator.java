@@ -101,3 +101,4 @@ public class LanderSimulator {
 		return (this.altitude > 0);
 	}
 }
+

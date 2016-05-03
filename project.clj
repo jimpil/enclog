@@ -3,11 +3,13 @@
   :url "http://github.com/jimpil/enclog"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :dependencies [[org.clojure/clojure "1.6.0"]
-                 [org.encog/encog-core "3.2.0"]]
+  :dependencies [[org.clojure/clojure "1.8.0"]
+                 [org.encog/encog-core "3.3.0"]]
   :jvm-opts ["-Xmx1g"]
   :scm  {:name "git"
-         :url "https://github.com/jimpil/enclog"} 
-  ;:java-source-paths ["src/encog_java"]
-  ;:main     enclog.examples
+         :url "https://github.com/jimpil/enclog"}
+
+  :source-paths ["src" "src/enclog"]
+  :java-source-paths ["test/enclog/"]
+  :test-paths ["test" "test/enclog"]
   )
