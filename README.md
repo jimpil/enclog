@@ -23,7 +23,7 @@ The jar(s)?
 
 As usual, it lives on clojars. Just add:
 ``` clojure
-[org.encog/encog-core "3.3.0"] ;official encog 3.2 release  
+[org.encog/encog-core "3.3.0"] ;official encog 3.3 release  
 [enclog "0.6.6"] ;my code (use enclog & v0.6.3 for encog v3.1.0)
 ```
 to your :dependencies and you 're good to go...
@@ -84,18 +84,15 @@ In general you should always remember:
 (trainer :neat :fitness-fn #(...) :input 2 :output 1 :population-size 1000)  ;;a brand new population with default parameters
 ```     
 
-- Simple convenience macros do exist for evaluating quickly a trained network and also for implementing the CalculateScore class which is needed for doing GA or simulated-annealing training.
+- Simple convenience functions do exist for evaluating quickly a trained network and also for implementing the CalculateScore class which is needed for doing GA or simulated-annealing training.
 
 - Ideally, check the source when any 'strange' error occurs. You don't even have to go online - it's in the jar!
 
-Other stuff...
-----------------
-Developed using Clojure 1.4 and leiningen2.
-Should work with 1.3 but not lower than that!
-It seems that the stdout problem persists in leiningen2 as well... (repl hangs unless aot and "lein2 run")
 
+Notes
+--------
 
-This is still work in progress...If you're going to do any serious ML job with it, be prepared to write at least some Java simply because not everything has been wrapped. The plan is not to have to write any Java code by version 1.0. 
+This project is no longer under active development.
 
 ## License
 
