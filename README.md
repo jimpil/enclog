@@ -17,12 +17,14 @@ P.S.: This is still work in progress. Nonetheless the neural nets, training meth
 ## Usage
 
 The jar(s)?
--------------------
+-----------
+
+[![Clojars Project](https://img.shields.io/clojars/v/enclog.svg)](https://clojars.org/enclog)
 
 As usual, it lives on clojars. Just add:
 ``` clojure
-[org.encog/encog-core "3.2.0"] ;official encog 3.2 release  
-[enclog "0.6.5"] ;my code (use enclog v0.6.3 for encog v3.1.0)
+[org.encog/encog-core "3.3.0"] ;official encog 3.2 release  
+[enclog "0.6.6"] ;my code (use enclog & v0.6.3 for encog v3.1.0)
 ```
 to your :dependencies and you 're good to go...
 
